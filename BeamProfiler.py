@@ -21,10 +21,12 @@ matplotlib.rc('axes', labelsize=35)
 matplotlib.rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
 matplotlib.rc('text', usetex=True)
 date = time.strftime("%d%m%y%H%M")
-file_data = open(str("./Data/"+date+".dat"),"w")
+file_data = open(str("./Data/"+date+".dat"),"w+")
 data_fit=0
 distance=0
 FILENAME=0
+Xback=0
+Yback=0
 
 class WidgetCam(QtGui.QDialog):
 	def __init__(self, parent=None):
@@ -96,6 +98,38 @@ class WidgetFitY(QtGui.QDialog):
 	def setPicture(self,namefile):
 		self.fity.setPixmap(QtGui.QPixmap(str(namefile)))
 		self.fity.update()
+		
+class WidgetWaistX(QtGui.QDialog):
+	def __init__(self, parent=None):
+		QtGui.QWidget.__init__(self,parent)
+		self.setWindowTitle("Waist X")
+		self.hBoxP = QHBoxLayout()
+		self.waistx = QtGui.QLabel()
+		self.waistx.setFixedWidth(322)
+		self.waistx.setFixedHeight(242)
+		self.waistx.setScaledContents(True)
+		self.hBoxP.addWidget(self.waistx)	
+		self.setLayout(self.hBoxP)
+		
+	def setPicture(self,namefile):
+		self.waistx.setPixmap(QtGui.QPixmap(str(namefile)))
+		self.waistx.update()		
+
+class WidgetWaistY(QtGui.QDialog):
+	def __init__(self, parent=None):
+		QtGui.QWidget.__init__(self,parent)
+		self.setWindowTitle("Waist Y")
+		self.hBoxP = QHBoxLayout()
+		self.waisty = QtGui.QLabel()
+		self.waisty.setFixedWidth(322)
+		self.waisty.setFixedHeight(242)
+		self.waisty.setScaledContents(True)
+		self.hBoxP.addWidget(self.waisty)	
+		self.setLayout(self.hBoxP)
+		
+	def setPicture(self,namefile):
+		self.waisty.setPixmap(QtGui.QPixmap(str(namefile)))
+		self.waisty.update()		
 
 class WidgetControl(QtGui.QDialog):
 	def __init__(self,wcamo,wfitxo,wfityo,wfit3do,wdatao,parent=None):
@@ -103,14 +137,20 @@ class WidgetControl(QtGui.QDialog):
 		self.setWindowTitle("Control")
 		self.bcapture = QtGui.QPushButton('&Capture', self)
 		self.bcapture.clicked.connect(self.capture)
-		self.textEdit = QtGui.QLineEdit()
-		self.textEdit.resize(100,25)
-		self.textEdit.setFont(QFont("Arial",11))
+		self.labeldistance = QtGui.QLabel()
+		self.labeldistance.setText("Distance [mm]")
+		self.lineEdit = QtGui.QLineEdit()
+		self.lineEdit.resize(100,25)
+		self.lineEdit.setFont(QFont("Arial",11))
+		self.bback = QtGui.QPushButton('&Backgroud', self)
+		self.bback.clicked.connect(self.back)		
 		self.bwaist = QtGui.QPushButton('&Waist', self)
 		self.bwaist.clicked.connect(self.fitwaist)
 		layout = QtGui.QVBoxLayout(self)
 		layout.addWidget(self.bcapture)
-		layout.addWidget(self.textEdit)
+		layout.addWidget(self.labeldistance)
+		layout.addWidget(self.lineEdit)
+		layout.addWidget(self.bback)		
 		layout.addWidget(self.bwaist)
 		self.setLayout(layout)
 		self.wcam=wcamo
@@ -118,11 +158,13 @@ class WidgetControl(QtGui.QDialog):
 		self.wfity=wfityo
 		self.wfit3d=wfit3do
 		self.wdata=wdatao
+		self.waistx=WidgetWaistX()
+		self.waisty=WidgetWaistY()
 	
 	def capture(self):
 		global distance
 		global FILENAME
-		distance=self.textEdit.text()
+		distance=self.lineEdit.text()
 		FILENAME=str(str(date)+"_"+str(distance)+"_")
 		print "Profile saved as ./Fitting/"+FILENAME+".jpg"
 		self.wcam.savePhoto()
@@ -131,24 +173,56 @@ class WidgetControl(QtGui.QDialog):
 		self.wfitx.setPicture(str("./Fitting/"+str(FILENAME)+"Y.jpg"))
 		self.wfit3d.setPicture(str("./Fitting/"+str(FILENAME)+"3D.jpg"))
 		self.wdata.setValues()
+	
+	def back(self):
+		global Xback
+		global Yback
+		self.wcam.savePhoto()
+		I = Image.open(str("./Fitting"+FILENAME+".jpg"))
+		I1=I.convert('L') # convierte a escala de grises
+		a=np.asarray(I1,dtype=np.uint8)/255.0 #convierte I1 en una matriz normalizada con /255
+		N=a.shape[0]
+		M=a.shape[1]
+		max=np.max(a)
+		x=np.arange(M)
+		y=np.arange(N)
+		X,Y = meshgrid(x,y)
+		Xback=X
+		Yback=Y
 		
 	def fitwaist(self):
+		global file_data
+		global FILENAME
+		file_data.close()
 		fig = figure(figsize=(12,10))
-		Zd, Ax, Bx, Cx, Ay, By, Cy = loadtxt(str(date+".dat"), unpack = True)
+		date="W11"##############
+		lam=632./(10**6)
+		Zd, Ax, Bx, Cx, Ay, By, Cy = loadtxt(str("./Data/"+date+".dat"), unpack = True)		
 		def func(x, Af, Bf, Cf, Df):
 			return Af*(np.sqrt(((x-Bf)/Cf)**2+1))+Df
 		(Af, Bf, Cf, Df), _ = curve_fit(func, Zd, Ax)
 		plt.plot(Zd,Ax,'.')
-		plt.plot(Zd,func(Zd, Af, Bf, Cf, Df),linewidth = 1)
-		lam=632./(10**6)
+		plt.plot(Zd,func(Zd, Af, Bf, Cf, Df),linewidth = 2)
 		zr=Cf
 		Wo = np.sqrt((zr*lam)/np.pi)
 		X = np.linspace(-600, 600, 1000, endpoint=True)
 		plt.plot(X,func(X, Af, Bf, Cf, Df),linewidth = 1)
 		plt.plot(X,func(X, -Af, Bf, Cf, Df),linewidth = 1)
-		#fig.set_size_inches(18.5, 10.5)
-		fig.savefig(str("./Fitting/"+str(FILENAME)+"Waist.jpg"))#####################
-
+		fig.savefig(str("./Fitting/"+str(FILENAME)+"WaistX.jpg"))
+		self.waistx.setPicture(str("./Fitting/"+str(FILENAME)+"WaistX.jpg"))
+		self.waistx.show()
+		
+		plt.plot(Zd,Ay,'.')
+		plt.plot(Zd,func(Zd, Af, Bf, Cf, Df),linewidth = 2)
+		zr=Cf
+		Wo = np.sqrt((zr*lam)/np.pi)
+		Y = np.linspace(-600, 600, 1000, endpoint=True)
+		plt.plot(Y,func(Y, Af, Bf, Cf, Df),linewidth = 1)
+		plt.plot(Y,func(Y, -Af, Bf, Cf, Df),linewidth = 1)
+		fig.savefig(str("./Fitting/"+str(FILENAME)+"WaistY.jpg"))
+		self.waisty.setPicture(str("./Fitting/"+str(FILENAME)+"WaistY.jpg"))
+		self.waisty.show()
+				
 		
 class WidgetData(QtGui.QDialog):
 	def __init__(self, parent=None):
