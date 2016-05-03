@@ -13,18 +13,14 @@ from matplotlib.colors import LogNorm
 import numpy.linalg as la
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.optimize import curve_fit
-import time
 
 matplotlib.rc('xtick', labelsize=35) 
 matplotlib.rc('ytick', labelsize=35)
 matplotlib.rc('axes', labelsize=35)
 matplotlib.rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
 matplotlib.rc('text', usetex=True)
-date = time.strftime("%d%m%y%H%M")
-file_data = open(str("./Data/"+date+".dat"),"w")
-data_fit=0
-distance=0
-FILENAME=0
+date = os.system('date +%Y%m%d')
+file_data = open(str(date),'w')
 
 class WidgetCam(QtGui.QDialog):
 	def __init__(self, parent=None):
@@ -33,22 +29,18 @@ class WidgetCam(QtGui.QDialog):
 		self.hBoxP = QHBoxLayout()
 		self.scene = QtGui.QGraphicsScene(self)
 		#self.scene.addText("Hello, world!");
-		self.profile = QtGui.QGraphicsView(self.scene)
-		self.profile.setFixedWidth(322)
-		self.profile.setFixedHeight(242)
-		self.hBoxP.addWidget(self.profile)
+		profile = QtGui.QGraphicsView(self.scene)
+		profile.setFixedWidth(322)
+		profile.setFixedHeight(242)
+		self.hBoxP.addWidget(profile)
 		self.setLayout(self.hBoxP)
 		
 	def ProcessFrame(self, im):
 		#print "Frame update", im
-		self.pix = QtGui.QPixmap(im)
+		pix = QtGui.QPixmap(im)
 		self.scene.clear()
-		self.scene.addPixmap(self.pix)
-	
-	def savePhoto(self):
-		self.pixMap = QPixmap.grabWidget(self.profile);
-		self.pixMap.save(str("./Fitting/"+FILENAME+".jpg"))
-		
+		self.scene.addPixmap(pix)
+
 class WidgetFit3d(QtGui.QDialog):
 	def __init__(self, parent=None):
 		QtGui.QWidget.__init__(self,parent)
@@ -62,7 +54,7 @@ class WidgetFit3d(QtGui.QDialog):
 		self.setLayout(self.hBoxP)
 	
 	def setPicture(self,namefile):
-		self.fit3d.setPixmap(QtGui.QPixmap(str(namefile)))
+		self.fit3d.setPixmap(QtGui.QPixmap(str("./Fitting/"+namefile+".jpg")))
 		self.fit3d.update()
 		
 class WidgetFitX(QtGui.QDialog):
@@ -78,7 +70,7 @@ class WidgetFitX(QtGui.QDialog):
 		self.setLayout(self.hBoxP)
 		
 	def setPicture(self,namefile):
-		self.fitx.setPixmap(QtGui.QPixmap(str(namefile)))
+		self.fitx.setPixmap(QtGui.QPixmap(str("./Fitting/"+namefile+".jpg")))
 		self.fitx.update()
 		
 class WidgetFitY(QtGui.QDialog):
@@ -94,61 +86,13 @@ class WidgetFitY(QtGui.QDialog):
 		self.setLayout(self.hBoxP)
 		
 	def setPicture(self,namefile):
-		self.fity.setPixmap(QtGui.QPixmap(str(namefile)))
+		self.fity.setPixmap(QtGui.QPixmap(str("./Fitting/"+namefile+".jpg")))
 		self.fity.update()
 
 class WidgetControl(QtGui.QDialog):
-	def __init__(self,wcamo,wfitxo,wfityo,wfit3do,wdatao,parent=None):
+	def __init__(self, parent=None):
 		QtGui.QWidget.__init__(self,parent)
 		self.setWindowTitle("Control")
-		self.bcapture = QtGui.QPushButton('&Capture', self)
-		self.bcapture.clicked.connect(self.capture)
-		self.textEdit = QtGui.QLineEdit()
-		self.textEdit.resize(100,25)
-		self.textEdit.setFont(QFont("Arial",11))
-		self.bwaist = QtGui.QPushButton('&Waist', self)
-		self.bwaist.clicked.connect(self.fitwaist)
-		layout = QtGui.QVBoxLayout(self)
-		layout.addWidget(self.bcapture)
-		layout.addWidget(self.textEdit)
-		layout.addWidget(self.bwaist)
-		self.setLayout(layout)
-		self.wcam=wcamo
-		self.wfitx=wfitxo
-		self.wfity=wfityo
-		self.wfit3d=wfit3do
-		self.wdata=wdatao
-	
-	def capture(self):
-		global distance
-		global FILENAME
-		distance=self.textEdit.text()
-		FILENAME=str(str(date)+"_"+str(distance)+"_")
-		print "Profile saved as ./Fitting/"+FILENAME+".jpg"
-		self.wcam.savePhoto()
-		analice(str("./Fitting/"+str(FILENAME)+".jpg"))
-		self.wfity.setPicture(str("./Fitting/"+str(FILENAME)+"X.jpg"))
-		self.wfitx.setPicture(str("./Fitting/"+str(FILENAME)+"Y.jpg"))
-		self.wfit3d.setPicture(str("./Fitting/"+str(FILENAME)+"3D.jpg"))
-		self.wdata.setValues()
-		
-	def fitwaist(self):
-		fig = figure(figsize=(12,10))
-		Zd, Ax, Bx, Cx, Ay, By, Cy = loadtxt(str(date+".dat"), unpack = True)
-		def func(x, Af, Bf, Cf, Df):
-			return Af*(np.sqrt(((x-Bf)/Cf)**2+1))+Df
-		(Af, Bf, Cf, Df), _ = curve_fit(func, Zd, Ax)
-		plt.plot(Zd,Ax,'.')
-		plt.plot(Zd,func(Zd, Af, Bf, Cf, Df),linewidth = 1)
-		lam=632./(10**6)
-		zr=Cf
-		Wo = np.sqrt((zr*lam)/np.pi)
-		X = np.linspace(-600, 600, 1000, endpoint=True)
-		plt.plot(X,func(X, Af, Bf, Cf, Df),linewidth = 1)
-		plt.plot(X,func(X, -Af, Bf, Cf, Df),linewidth = 1)
-		#fig.set_size_inches(18.5, 10.5)
-		fig.savefig(str("./Fitting/"+str(FILENAME)+"Waist.jpg"))#####################
-
 		
 class WidgetData(QtGui.QDialog):
 	def __init__(self, parent=None):
@@ -157,25 +101,18 @@ class WidgetData(QtGui.QDialog):
 		self.layout = QtGui.QGridLayout() 
 		self.table = QtGui.QTableWidget()
 		self.layout.addWidget(self.table)
-		self.table.setRowCount(6)
+		self.table.setRowCount(4)
 		self.table.setColumnCount(2)
-		self.table.setItem(0,0, QTableWidgetItem("A_x"))
-		self.table.setItem(1,0, QTableWidgetItem("B_x"))
-		self.table.setItem(2,0, QTableWidgetItem("C_x"))
-		self.table.setItem(3,0, QTableWidgetItem("A_y"))
-		self.table.setItem(4,0, QTableWidgetItem("B_y"))
-		self.table.setItem(5,0, QTableWidgetItem("C_y"))
+		self.table.setItem(0,0, QTableWidgetItem())
+		self.table.setItem(0,1, QTableWidgetItem())
+		self.table.setItem(1,0, QTableWidgetItem())
+		self.table.setItem(1,1, QTableWidgetItem())
+		self.table.setItem(2,0, QTableWidgetItem())
+		self.table.setItem(2,1, QTableWidgetItem())
+		self.table.setItem(3,0, QTableWidgetItem())
+		self.table.setItem(3,1, QTableWidgetItem())
 		self.setLayout(self.layout)
-	
-	def setValues(self):
-		self.table.setItem(0,1, QTableWidgetItem(str(data_fit[0])))
-		self.table.setItem(1,1, QTableWidgetItem(str(data_fit[1])))
-		self.table.setItem(2,1, QTableWidgetItem(str(data_fit[2])))
-		self.table.setItem(3,1, QTableWidgetItem(str(data_fit[3])))
-		self.table.setItem(4,1, QTableWidgetItem(str(data_fit[4])))
-		self.table.setItem(5,1, QTableWidgetItem(str(data_fit[5])))
-		self.table.update()
-	
+
 class CamWorker(QtCore.QThread): 
     def __init__(self): 
 		super(CamWorker, self).__init__() 
@@ -200,8 +137,8 @@ class WMainProfiler(QtGui.QMainWindow):
 		self.wfitx = WidgetFitX()
 		self.wfity = WidgetFitY()
 		self.wdata=WidgetData()
-		self.wcontrol=WidgetControl(self.wcam,self.wfitx,self.wfity,self.wfit3d,self.wdata)
-				
+		self.wcontrol=WidgetControl()
+		
 		self.statusBar().showMessage('Ready')
 		self.setWindowTitle('Statusbar')
 		self.show()
@@ -211,17 +148,17 @@ class WMainProfiler(QtGui.QMainWindow):
 		exitAction.setStatusTip('Exit application')
 		exitAction.triggered.connect(QtGui.qApp.quit)
 	
-		#captureAction = QtGui.QAction(QtGui.QIcon('exit.png'), '&Capture', self)
-		#captureAction.setShortcut('Ctrl+C')
-		#captureAction.setStatusTip('Capture Profile')
-		#captureAction.triggered.connect(self.capture)
+		captureAction = QtGui.QAction(QtGui.QIcon('exit.png'), '&Capture', self)
+		captureAction.setShortcut('Ctrl+C')
+		captureAction.setStatusTip('Capture Profile')
+		captureAction.triggered.connect(self.capture)
 		
 		menubar = self.menuBar()
 		fileMenu = menubar.addMenu('&File')
 		fileMenu.addAction(exitAction)
 		
-		#optionsMenu = menubar.addMenu('&Options')
-		#optionsMenu.addAction(captureAction)
+		optionsMenu = menubar.addMenu('&Options')
+		optionsMenu.addAction(captureAction)
 		
 		self.setWindowState(Qt.WindowMaximized)
 		self.setWindowTitle('Beam Profiler')
@@ -242,25 +179,20 @@ class WMainProfiler(QtGui.QMainWindow):
 		self.wfity.setGeometry(QRect(380, 420, 350, 200))
 		self.wfity.show()
 		
-		self.wdata.setGeometry(QRect(880, 120, 239, 225))
+		self.wdata.setGeometry(QRect(880, 120, 250, 200))
 		self.wdata.show()
 		
-		self.wcontrol.setGeometry(QRect(880, 420, 100, 200))
+		self.wcontrol.setGeometry(QRect(880, 420, 250, 200))
 		self.wcontrol.show()		
 		
-	#def capture(self):
-		#self.wcam.savePhoto()
-		#analice(str("./Fitting/"+str(FILENAME)+".jpg"))
-		#self.wfity.setPicture(str("./Fitting/"+str(FILENAME)+"X.jpg"))
-		#self.wfitx.setPicture(str("./Fitting/"+str(FILENAME)+"Y.jpg"))
-		#self.wfit3d.setPicture(str("./Fitting/"+str(FILENAME)+"3D.jpg"))
-		#self.wdata.setValues()
+	def capture(self):
+		self.wfity.setPicture('yfit')
+		self.wfitx.setPicture('xfit')
+		self.wfit3d.setPicture('3dfit')
 		
-def analice(fname):
-	global data_fit 
-	global distance
+def analice(name):
 	print "Running analysis..."	
-	I = Image.open(str(fname))
+	I = Image.open(str("./Capture/"+name+".jpg"))
 	I1=I.convert('L') # convierte a escala de grises
 	#I1.show()
 	a=np.asarray(I1,dtype=np.uint8)/255.0 #convierte I1 en una matriz normalizada con /255
@@ -314,7 +246,7 @@ def analice(fname):
 	Bx=Bf
 	Cx=Cf
 	fig.set_size_inches(18.5, 10.5)
-	fig.savefig(str("./Fitting/"+str(FILENAME)+"X.jpg"))
+	fig.savefig('./Fitting/xfit.jpg') 
 	
 	(Af, Bf, Cf), _ = curve_fit(func, C[:,0], C[:,1])
 	fig = figure(figsize=(12,10))
@@ -329,7 +261,7 @@ def analice(fname):
 	By=Bf
 	Cy=Cf
 	fig.set_size_inches(18.5, 10.5)
-	fig.savefig(str("./Fitting/"+str(FILENAME)+"Y.jpg"))
+	fig.savefig('./Fitting/yfit.jpg') 
 	
 	fig=figure(figsize = (20,20))
 	ax = fig.gca(projection='3d')
@@ -342,13 +274,12 @@ def analice(fname):
 	cset = ax.contour(X, Y, a, zdir='x', offset=-20, cmap=cm.jet)
 	cset = ax.contour(X, Y, a, zdir='y', offset=-20, cmap=cm.jet)
 	fig.set_size_inches(18.5, 10.5)
-	fig.savefig(str("./Fitting/"+str(FILENAME)+"3D.jpg"))
+	fig.savefig('./Fitting/3dfit.jpg') 
 	#colorbar()
 	#show()
 	eqx = "I="+str(Ax)+"exp(-(x-"+str(Bx)+")^2/(2"+str(Cx)+"^2))"
 	eqy = "I="+str(Ay)+"exp(-(x-"+str(By)+")^2/(2"+str(Cy)+"^2))"
-	file_data.write(str(distance)+" "+str(Ax)+" "+str(Bx)+" "+str(Cx)+" "+str(Ay)+" "+str(By)+" "+str(Cy)+"\n")
-	data_fit=[Ax,Bx,Cx,Ay,By,Cy]
+	file_data.write(str(Ax)+" "+str(Bx)+" "+str(Cx)+" "+str(Ay)+" "+str(By)+" "+str(Cy))
 	print "Finish"
 				
 def main():
