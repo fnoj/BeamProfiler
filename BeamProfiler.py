@@ -180,7 +180,7 @@ class WidgetControl(QtGui.QDialog):
 		self.wfity.setPicture(str("./Fitting/"+str(FILENAME)+"X.jpg"))
 		self.wfitx.setPicture(str("./Fitting/"+str(FILENAME)+"Y.jpg"))
 		self.wfit3d.setPicture(str("./Fitting/"+str(FILENAME)+"3D.jpg"))
-		#self.wdata.setValues()
+		self.wdata.setValues()
 	
 	def back(self):
 		global Aback
@@ -265,12 +265,12 @@ class WidgetData(QtGui.QDialog):
 		self.layout.addWidget(self.table)
 		self.table.setRowCount(6)
 		self.table.setColumnCount(2)
-		self.table.setItem(0,0, QTableWidgetItem("A_x"))
-		self.table.setItem(1,0, QTableWidgetItem("B_x"))
-		self.table.setItem(2,0, QTableWidgetItem("C_x"))
-		self.table.setItem(3,0, QTableWidgetItem("A_y"))
-		self.table.setItem(4,0, QTableWidgetItem("B_y"))
-		self.table.setItem(5,0, QTableWidgetItem("C_y"))
+		self.table.setItem(0,0, QTableWidgetItem("Amp x"))
+		self.table.setItem(1,0, QTableWidgetItem("Width x"))
+		self.table.setItem(2,0, QTableWidgetItem("Mean x"))
+		self.table.setItem(3,0, QTableWidgetItem("Amp y"))
+		self.table.setItem(4,0, QTableWidgetItem("Width y"))
+		self.table.setItem(5,0, QTableWidgetItem("Mean y"))
 		self.setLayout(self.layout)	
 	
 	def setValues(self):
@@ -415,6 +415,8 @@ def analice(fname):
 	gmod = Model(gaussian)
 	#Fitting X Axis
 	result = gmod.fit(D[:,1], x=D[:,0], amp=100, cen=150, wid=50)
+	Xresult = result.best_values
+	print "Amp: "+str(Xresult.get("amp"))+", Width: "+str(Xresult.get("wid"))+", Mean: "+str(Xresult.get("cen"))
 
 	fig = figure(figsize=(12,10))
 	ax1 = fig.gca()
@@ -423,25 +425,26 @@ def analice(fname):
 	#plt.plot(D[:,0],func(D[:,0], Af, Bf, Cf),linewidth = 5)
 	ax1.set_xlabel("x (px)")
 	ax1.set_ylabel("Intensity")
-	#print(Af, Bf, Cf)
-	#Ax=Af
-	#Bx=Bf
-	#Cx=Cf
+	Ampx=Xresult.get("amp")
+	Widthx=Xresult.get("wid")
+	Meanx=Xresult.get("cen")
 	fig.set_size_inches(18.5, 10.5)
 	fig.savefig(str("./Fitting/"+str(FILENAME)+"X.jpg"))
 	
+	
 	#Fitting Y Axis
 	result = gmod.fit(C[:,1], x=C[:,0], amp=100, cen=150, wid=50)
+	Yresult = result.best_values
+	print "Amp: "+str(Yresult.get("amp"))+", Width: "+str(Yresult.get("wid"))+", Mean: "+str(Yresult.get("cen"))
 	fig = figure(figsize=(12,10))
 	ax2 = fig.gca()
 	plt.plot(C[:,0],C[:,1],'.')
 	plt.plot(C[:,0], result.best_fit, 'r-',linewidth = 5)
 	ax2.set_xlabel("y (px)")
 	ax2.set_ylabel("Intensity")
-	#print(Af, Bf, Cf)
-	#Ay=Af
-	#By=Bf
-	#Cy=Cf
+	Ampy=Yresult.get("amp")
+	Widthy=Yresult.get("wid")
+	Meany=Yresult.get("cen")
 	fig.set_size_inches(18.5, 10.5)
 	fig.savefig(str("./Fitting/"+str(FILENAME)+"Y.jpg"))
 	
@@ -458,13 +461,11 @@ def analice(fname):
 	fig.set_size_inches(18.5, 10.5)
 	fig.savefig(str("./Fitting/"+str(FILENAME)+"3D.jpg"))
 	#colorbar()
-	#show()
-	#eqx = "I="+str(Ax)+"exp(-(x-"+str(Bx)+")^2/(2"+str(Cx)+"^2))"
-	#eqy = "I="+str(Ay)+"exp(-(x-"+str(By)+")^2/(2"+str(Cy)+"^2))"
-	#file_data.write(str(distance)+" "+str(Ax)+" "+str(Bx)+" "+str(Cx)+" "+str(Ay)+" "+str(By)+" "+str(Cy)+"\n")
-	#data_fit=[Ax,Bx,Cx,Ay,By,Cy]
-	print(result.best_values)
-	print a
+	eqx = "I="+str(Ampx)+"exp(-(x-"+str(Widthx)+")^2/(2"+str(Meanx)+"^2))"
+	eqy = "I="+str(Ampy)+"exp(-(x-"+str(Widthy)+")^2/(2"+str(Meany)+"^2))"
+	file_data.write(str(distance)+" "+str(Ampx)+" "+str(Widthx)+" "+str(Meanx)+" "+str(Ampy)+" "+str(Widthy)+" "+str(Meany)+"\n")
+	data_fit=[Ampx,Widthx,Meanx,Ampy,Widthy,Meany]
+	#print(result.best_values)
 	print "Finish"
 				
 def main():
