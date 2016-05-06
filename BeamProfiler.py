@@ -13,20 +13,20 @@ from matplotlib.colors import LogNorm
 import numpy.linalg as la
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.optimize import curve_fit
-import time
+from lmfit import Model
 
-matplotlib.rc('xtick', labelsize=35) 
-matplotlib.rc('ytick', labelsize=35)
-matplotlib.rc('axes', labelsize=35)
+matplotlib.rc('xtick', labelsize=45) 
+matplotlib.rc('ytick', labelsize=45)
+matplotlib.rc('axes', labelsize=45)
 matplotlib.rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
 matplotlib.rc('text', usetex=True)
 date = time.strftime("%d%m%y%H%M")
-file_data = open(str("./Data/"+date+".dat"),"w+")
+file_data = open(str("./Data/"+date+".dat"),"w")
 data_fit=0
 distance=0
-FILENAME=0
-Xback=0
-Yback=0
+FILENAME=date
+Aback=0
+Bback=0
 
 class WidgetCam(QtGui.QDialog):
 	def __init__(self, parent=None):
@@ -36,8 +36,8 @@ class WidgetCam(QtGui.QDialog):
 		self.scene = QtGui.QGraphicsScene(self)
 		#self.scene.addText("Hello, world!");
 		self.profile = QtGui.QGraphicsView(self.scene)
-		self.profile.setFixedWidth(322)
-		self.profile.setFixedHeight(242)
+		self.profile.setFixedWidth(644/2)
+		self.profile.setFixedHeight(484/2)
 		self.hBoxP.addWidget(self.profile)
 		self.setLayout(self.hBoxP)
 		
@@ -47,9 +47,9 @@ class WidgetCam(QtGui.QDialog):
 		self.scene.clear()
 		self.scene.addPixmap(self.pix)
 	
-	def savePhoto(self):
+	def savePhoto(self,name):
 		self.pixMap = QPixmap.grabWidget(self.profile);
-		self.pixMap.save(str("./Fitting/"+FILENAME+".jpg"))
+		self.pixMap.save(str("./Fitting/"+str(FILENAME)+str(name)+".jpg"))
 		
 class WidgetFit3d(QtGui.QDialog):
 	def __init__(self, parent=None):
@@ -135,23 +135,31 @@ class WidgetControl(QtGui.QDialog):
 	def __init__(self,wcamo,wfitxo,wfityo,wfit3do,wdatao,parent=None):
 		QtGui.QWidget.__init__(self,parent)
 		self.setWindowTitle("Control")
-		self.bcapture = QtGui.QPushButton('&Capture', self)
-		self.bcapture.clicked.connect(self.capture)
 		self.labeldistance = QtGui.QLabel()
 		self.labeldistance.setText("Distance [mm]")
 		self.lineEdit = QtGui.QLineEdit()
 		self.lineEdit.resize(100,25)
 		self.lineEdit.setFont(QFont("Arial",11))
+		self.lineEdit.setValidator(QIntValidator())		
+		self.lineEdit.setEnabled(False)
+		self.bcapture = QtGui.QPushButton('&Capture', self)
+		self.bcapture.clicked.connect(self.capture)
+		self.bcapture.setEnabled(False)
 		self.bback = QtGui.QPushButton('&Backgroud', self)
-		self.bback.clicked.connect(self.back)		
+		self.bback.clicked.connect(self.back)	
 		self.bwaist = QtGui.QPushButton('&Waist', self)
 		self.bwaist.clicked.connect(self.fitwaist)
+		self.bwaist.setEnabled(False)
+		self.breset = QtGui.QPushButton('&Reset', self)
+		self.breset.clicked.connect(self.reset)
+		self.breset.setEnabled(False)
 		layout = QtGui.QVBoxLayout(self)
-		layout.addWidget(self.bcapture)
 		layout.addWidget(self.labeldistance)
 		layout.addWidget(self.lineEdit)
+		layout.addWidget(self.bcapture)		
 		layout.addWidget(self.bback)		
 		layout.addWidget(self.bwaist)
+		layout.addWidget(self.breset)
 		self.setLayout(layout)
 		self.wcam=wcamo
 		self.wfitx=wfitxo
@@ -166,33 +174,49 @@ class WidgetControl(QtGui.QDialog):
 		global FILENAME
 		distance=self.lineEdit.text()
 		FILENAME=str(str(date)+"_"+str(distance)+"_")
-		print "Profile saved as ./Fitting/"+FILENAME+".jpg"
-		self.wcam.savePhoto()
-		analice(str("./Fitting/"+str(FILENAME)+".jpg"))
+		print "Profile saved as ./Fitting/"+FILENAME+"P.jpg"
+		self.wcam.savePhoto("P")
+		analice(str("./Fitting/"+str(FILENAME)+"P.jpg"))
 		self.wfity.setPicture(str("./Fitting/"+str(FILENAME)+"X.jpg"))
 		self.wfitx.setPicture(str("./Fitting/"+str(FILENAME)+"Y.jpg"))
 		self.wfit3d.setPicture(str("./Fitting/"+str(FILENAME)+"3D.jpg"))
-		self.wdata.setValues()
+		#self.wdata.setValues()
 	
 	def back(self):
-		global Xback
-		global Yback
-		self.wcam.savePhoto()
-		I = Image.open(str("./Fitting"+FILENAME+".jpg"))
-		I1=I.convert('L') # convierte a escala de grises
-		a=np.asarray(I1,dtype=np.uint8)/255.0 #convierte I1 en una matriz normalizada con /255
-		N=a.shape[0]
-		M=a.shape[1]
-		max=np.max(a)
-		x=np.arange(M)
-		y=np.arange(N)
-		X,Y = meshgrid(x,y)
-		Xback=X
-		Yback=Y
+		global Aback
+		global Bback
+		self.wcam.savePhoto("_background")
+		Ib = Image.open(str("./Fitting/"+str(date)+"_background.jpg"))
+		I1b=Ib.convert('L')
+		ab=np.asarray(I1b,dtype=np.uint8)/255.0
+		Nb=ab.shape[0]
+		Mb=ab.shape[1]
+		max=np.max(ab)
+		xb=np.arange(Mb)
+		yb=np.arange(Nb)
+		Xb,Yb = meshgrid(xb,yb)
+		Ab=[]
+		Bb=[]
+		for i in range(Nb):
+			for j in range(Mb):
+				Ab.append([i,j,ab[i][j]])
+				if ab[i][j] ==max:
+					Bb.append([i,j,ab[i][j]])
+		Ab = np.asarray(Ab)
+		Bb = np.asarray(Bb)
+		Aback=Ab 
+		Bback=Bb
+		self.bcapture.setEnabled(True)
+		self.bwaist.setEnabled(True)
+		self.bback.setEnabled(False)
+		self.lineEdit.setEnabled(True)
 		
 	def fitwaist(self):
 		global file_data
 		global FILENAME
+		self.bcapture.setEnabled(False)
+		self.lineEdit.setEnabled(False)
+		self.breset.setEnabled(True)
 		file_data.close()
 		fig = figure(figsize=(12,10))
 		date="W11"##############
@@ -210,8 +234,10 @@ class WidgetControl(QtGui.QDialog):
 		plt.plot(X,func(X, -Af, Bf, Cf, Df),linewidth = 1)
 		fig.savefig(str("./Fitting/"+str(FILENAME)+"WaistX.jpg"))
 		self.waistx.setPicture(str("./Fitting/"+str(FILENAME)+"WaistX.jpg"))
+		self.waistx.setGeometry(QRect(10, 60, 350, 200))
 		self.waistx.show()
 		
+		fig2 = figure(figsize=(12,10))
 		plt.plot(Zd,Ay,'.')
 		plt.plot(Zd,func(Zd, Af, Bf, Cf, Df),linewidth = 2)
 		zr=Cf
@@ -219,10 +245,16 @@ class WidgetControl(QtGui.QDialog):
 		Y = np.linspace(-600, 600, 1000, endpoint=True)
 		plt.plot(Y,func(Y, Af, Bf, Cf, Df),linewidth = 1)
 		plt.plot(Y,func(Y, -Af, Bf, Cf, Df),linewidth = 1)
-		fig.savefig(str("./Fitting/"+str(FILENAME)+"WaistY.jpg"))
+		fig2.savefig(str("./Fitting/"+str(FILENAME)+"WaistY.jpg"))
 		self.waisty.setPicture(str("./Fitting/"+str(FILENAME)+"WaistY.jpg"))
+		self.waisty.setGeometry(QRect(60, 120, 350, 200))
 		self.waisty.show()
 				
+	def reset(self):
+		file_data = open(str("./Data/"+date+".dat"),"w")
+		self.bback.setEnabled(True)
+		self.breset.setEnabled(False)
+		self.bwaist.setEnabled(False)
 		
 class WidgetData(QtGui.QDialog):
 	def __init__(self, parent=None):
@@ -239,7 +271,7 @@ class WidgetData(QtGui.QDialog):
 		self.table.setItem(3,0, QTableWidgetItem("A_y"))
 		self.table.setItem(4,0, QTableWidgetItem("B_y"))
 		self.table.setItem(5,0, QTableWidgetItem("C_y"))
-		self.setLayout(self.layout)
+		self.setLayout(self.layout)	
 	
 	def setValues(self):
 		self.table.setItem(0,1, QTableWidgetItem(str(data_fit[0])))
@@ -333,34 +365,39 @@ class WMainProfiler(QtGui.QMainWindow):
 def analice(fname):
 	global data_fit 
 	global distance
+	global date
 	print "Running analysis..."	
-	I = Image.open(str(fname))
-	I1=I.convert('L') # convierte a escala de grises
+	fname="lena.jpg"
+	R = Image.open("ruido.jpg")
+	#R = Image.open("./Fitting/"+str(date)+"_background.jpg")
+	R1=R.convert('L') #Convert to Gray Scale
+	I = Image.open(fname)
+	I1=I.convert('L') #Convert to Gray Scale
 	#I1.show()
-	a=np.asarray(I1,dtype=np.uint8)/255.0 #convierte I1 en una matriz normalizada con /255
+	Ra=np.asarray(R1,dtype=np.uint8)/255.0
+	a=np.asarray(I1,dtype=np.uint8)/255.0 #convierte I1 en una matriz
+
+	a=a-Ra
 	N=a.shape[0]
 	M=a.shape[1]
 	max=np.max(a)
-	x=np.arange(M)
-	y=np.arange(N)
-	X,Y = meshgrid(x,y)
-   
+	x=np.arange(N)
+	y=np.arange(M)
+	X,Y = meshgrid(y,x)
 	A=[]
 	B=[]
 	for i in range(N):
-	    for j in range(M):
-	        A.append([i,j,a[i][j]])
-	        if a[i][j] ==max:
-	              B.append([i,j,a[i][j]])
+		for j in range(M):
+			A.append([i,j,a[i][j]])
+			if a[i][j] ==max:
+				B.append([i,j,a[i][j]])
         
-	#Image(plt)
-	#print len(t)
 	B = np.asarray(B)
 	A = np.asarray(A)
-	#sacar puntos max y min en x y y
-	
+	#Sacar puntos max y min en x y y - Se toman los maximos a lo largo del eje vertical y Horizontal
 	xm=int(abs(np.max (B[:,0])-np.min(B[:,0]))/2)+np.min(B[:,0])
 	ym=int(abs(np.max (B[:,1])-np.min(B[:,1]))/2)+np.min(B[:,1])
+	
 	C=[]
 	D=[]
 	for i in range(N*M):
@@ -369,39 +406,42 @@ def analice(fname):
 	    if A[i,1]==ym:
 	        D.append([A[i,0],A[i,2]])            
 	
-	C=np.asarray(C)  
-	D=np.asarray(D)  
+	C=np.asarray(C)  # Para x
+	D=np.asarray(D)  # Para y
+	def gaussian(x, amp, cen, wid):
+		#"1-d gaussian: gaussian(x, amp, cen, wid)"
+		return (amp/(sqrt(2*pi)*wid)) * exp(-(x-cen)**2 /(2*wid**2))
 
-	#Fit de gaussiana
-	def func(x, Af, Bf, Cf):
-	    return Af * np.exp(-(x-Bf)**2/(2*Cf**2)) 
-	
-	(Af, Bf, Cf), _ = curve_fit(func, D[:,0], D[:,1])
+	gmod = Model(gaussian)
+	#Fitting X Axis
+	result = gmod.fit(D[:,1], x=D[:,0], amp=100, cen=150, wid=50)
+
 	fig = figure(figsize=(12,10))
 	ax1 = fig.gca()
 	plt.plot(D[:,0],D[:,1],'.')
-	plt.plot(D[:,0],func(D[:,0], Af, Bf, Cf),linewidth = 5)
+	plt.plot(D[:,0], result.best_fit, 'r-',linewidth = 5)
+	#plt.plot(D[:,0],func(D[:,0], Af, Bf, Cf),linewidth = 5)
 	ax1.set_xlabel("x (px)")
-	ax1.set_ylabel("Intensidad")
+	ax1.set_ylabel("Intensity")
 	#print(Af, Bf, Cf)
-	Ax=Af
-	Bx=Bf
-	Cx=Cf
+	#Ax=Af
+	#Bx=Bf
+	#Cx=Cf
 	fig.set_size_inches(18.5, 10.5)
 	fig.savefig(str("./Fitting/"+str(FILENAME)+"X.jpg"))
 	
-	(Af, Bf, Cf), _ = curve_fit(func, C[:,0], C[:,1])
+	#Fitting Y Axis
+	result = gmod.fit(C[:,1], x=C[:,0], amp=100, cen=150, wid=50)
 	fig = figure(figsize=(12,10))
 	ax2 = fig.gca()
-	#ax1 = fig.add_subplot(222)
 	plt.plot(C[:,0],C[:,1],'.')
-	plt.plot(C[:,0],func(C[:,0], Af, Bf, Cf),linewidth = 5)
+	plt.plot(C[:,0], result.best_fit, 'r-',linewidth = 5)
 	ax2.set_xlabel("y (px)")
-	ax2.set_ylabel("Intensidad")
+	ax2.set_ylabel("Intensity")
 	#print(Af, Bf, Cf)
-	Ay=Af
-	By=Bf
-	Cy=Cf
+	#Ay=Af
+	#By=Bf
+	#Cy=Cf
 	fig.set_size_inches(18.5, 10.5)
 	fig.savefig(str("./Fitting/"+str(FILENAME)+"Y.jpg"))
 	
@@ -411,7 +451,7 @@ def analice(fname):
 	fig.colorbar(figura, shrink=0.5, aspect=5)  
 	ax.set_xlabel("x")
 	ax.set_ylabel("y")
-	ax.set_zlabel("Intensidad")
+	ax.set_zlabel("Intensity")
 	ax.view_init(elev=45, azim=45)
 	cset = ax.contour(X, Y, a, zdir='x', offset=-20, cmap=cm.jet)
 	cset = ax.contour(X, Y, a, zdir='y', offset=-20, cmap=cm.jet)
@@ -419,10 +459,12 @@ def analice(fname):
 	fig.savefig(str("./Fitting/"+str(FILENAME)+"3D.jpg"))
 	#colorbar()
 	#show()
-	eqx = "I="+str(Ax)+"exp(-(x-"+str(Bx)+")^2/(2"+str(Cx)+"^2))"
-	eqy = "I="+str(Ay)+"exp(-(x-"+str(By)+")^2/(2"+str(Cy)+"^2))"
-	file_data.write(str(distance)+" "+str(Ax)+" "+str(Bx)+" "+str(Cx)+" "+str(Ay)+" "+str(By)+" "+str(Cy)+"\n")
-	data_fit=[Ax,Bx,Cx,Ay,By,Cy]
+	#eqx = "I="+str(Ax)+"exp(-(x-"+str(Bx)+")^2/(2"+str(Cx)+"^2))"
+	#eqy = "I="+str(Ay)+"exp(-(x-"+str(By)+")^2/(2"+str(Cy)+"^2))"
+	#file_data.write(str(distance)+" "+str(Ax)+" "+str(Bx)+" "+str(Cx)+" "+str(Ay)+" "+str(By)+" "+str(Cy)+"\n")
+	#data_fit=[Ax,Bx,Cx,Ay,By,Cy]
+	print(result.best_values)
+	print a
 	print "Finish"
 				
 def main():
@@ -434,3 +476,4 @@ def main():
    
 if __name__=='__main__':
 	main()
+
