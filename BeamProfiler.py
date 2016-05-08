@@ -23,14 +23,58 @@ matplotlib.rc('text', usetex=True)
 date = time.strftime("%d%m%y%H%M")
 file_data = open(str("./Data/"+date+".dat"),"w")
 data_fit=0
-distance=0
 FILENAME=date
+distance=0
 Aback=0
 Bback=0
+AmpX=0
+AmpY=0
+WidthX=0
+WidthY=0
+MeanX=0
+MeanY=0
+
+class WidgetContinue(QtGui.QDialog):
+	global AmpX,AmpY,WidthX,WidthY,MeanX,MeanY,distance
+	def __init__(self, bcapture,bwaist,lineEdit, parent=None):
+		self.bcap = bcapture
+		self.bwai = bwaist
+		self.lEdit = lineEdit
+		QtGui.QDialog.__init__(self,parent)
+		self.boxV = QtGui.QVBoxLayout()
+		self.boxH = QtGui.QHBoxLayout()
+		self.boxMain = QtGui.QVBoxLayout()
+		self.setWindowTitle("Save...")
+		self.lques = QtGui.QLabel()
+		self.lques.setText("Do you save this measure?")
+		self.byes = QtGui.QPushButton('&Yes')
+		self.byes.clicked.connect(self.yes)
+		self.bno = QtGui.QPushButton('&No')
+		self.bno.clicked.connect(self.no)
+		self.boxV.addWidget(self.lques)
+		self.boxH.addWidget(self.byes)		
+		self.boxH.addWidget(self.bno)				
+		self.boxMain.addLayout(self.boxV)
+		self.boxMain.addLayout(self.boxH)
+		self.setLayout(self.boxMain)
+	
+	def yes(self):
+		self.bcap.setEnabled(True)
+		self.bwai.setEnabled(True)
+		self.lEdit.setEnabled(True)
+		file_data.write(str(distance)+" "+str(AmpX)+" "+str(WidthX)+" "+str(MeanX)+" "+str(AmpY)+" "+str(WidthY)+" "+str(MeanY)+"\n")
+		self.hide()
+		
+	def no(self):
+		self.bcap.setEnabled(True)
+		self.bwai.setEnabled(True)
+		self.lEdit.setEnabled(True)
+		self.hide()
+		
 
 class WidgetCam(QtGui.QDialog):
 	def __init__(self, parent=None):
-		QtGui.QWidget.__init__(self,parent)
+		QtGui.QDialog.__init__(self,parent)
 		self.setWindowTitle("Profile")
 		self.hBoxP = QHBoxLayout()
 		self.scene = QtGui.QGraphicsScene(self)
@@ -53,7 +97,7 @@ class WidgetCam(QtGui.QDialog):
 		
 class WidgetFit3d(QtGui.QDialog):
 	def __init__(self, parent=None):
-		QtGui.QWidget.__init__(self,parent)
+		QtGui.QDialog.__init__(self,parent)
 		self.setWindowTitle("Profile 3D")
 		self.hBoxP = QHBoxLayout()
 		self.fit3d = QtGui.QLabel()
@@ -69,7 +113,7 @@ class WidgetFit3d(QtGui.QDialog):
 		
 class WidgetFitX(QtGui.QDialog):
 	def __init__(self, parent=None):
-		QtGui.QWidget.__init__(self,parent)
+		QtGui.QDialog.__init__(self,parent)
 		self.setWindowTitle("Profile X")
 		self.hBoxP = QHBoxLayout()
 		self.fitx = QtGui.QLabel()
@@ -85,7 +129,7 @@ class WidgetFitX(QtGui.QDialog):
 		
 class WidgetFitY(QtGui.QDialog):
 	def __init__(self, parent=None):
-		QtGui.QWidget.__init__(self,parent)
+		QtGui.QDialog.__init__(self,parent)
 		self.setWindowTitle("Profile Y")
 		self.hBoxP = QHBoxLayout()
 		self.fity = QtGui.QLabel()
@@ -101,7 +145,7 @@ class WidgetFitY(QtGui.QDialog):
 		
 class WidgetWaistX(QtGui.QDialog):
 	def __init__(self, parent=None):
-		QtGui.QWidget.__init__(self,parent)
+		QtGui.QDialog.__init__(self,parent)
 		self.setWindowTitle("Waist X")
 		self.hBoxP = QHBoxLayout()
 		self.waistx = QtGui.QLabel()
@@ -117,7 +161,7 @@ class WidgetWaistX(QtGui.QDialog):
 
 class WidgetWaistY(QtGui.QDialog):
 	def __init__(self, parent=None):
-		QtGui.QWidget.__init__(self,parent)
+		QtGui.QDialog.__init__(self,parent)
 		self.setWindowTitle("Waist Y")
 		self.hBoxP = QHBoxLayout()
 		self.waisty = QtGui.QLabel()
@@ -133,7 +177,7 @@ class WidgetWaistY(QtGui.QDialog):
 
 class WidgetControl(QtGui.QDialog):
 	def __init__(self,wcamo,wfitxo,wfityo,wfit3do,wdatao,parent=None):
-		QtGui.QWidget.__init__(self,parent)
+		QtGui.QDialog.__init__(self,parent)
 		self.setWindowTitle("Control")
 		self.labeldistance = QtGui.QLabel()
 		self.labeldistance.setText("Distance [mm]")
@@ -168,6 +212,8 @@ class WidgetControl(QtGui.QDialog):
 		self.wdata=wdatao
 		self.waistx=WidgetWaistX()
 		self.waisty=WidgetWaistY()
+		self.wcontinue = WidgetContinue(self.bcapture,self.bwaist,self.lineEdit)
+		self.wcontinue.setGeometry(QRect(480, 450, 20, 40))
 	
 	def capture(self):
 		global distance
@@ -181,6 +227,13 @@ class WidgetControl(QtGui.QDialog):
 		self.wfitx.setPicture(str("./Fitting/"+str(FILENAME)+"Y.jpg"))
 		self.wfit3d.setPicture(str("./Fitting/"+str(FILENAME)+"3D.jpg"))
 		self.wdata.setValues()
+		self.wcontinue.show()
+		self.bcapture.setEnabled(False)
+		self.bwaist.setEnabled(False)
+		self.bback.setEnabled(False)
+		self.breset.setEnabled(False)
+		self.lineEdit.setEnabled(False)
+		
 	
 	def back(self):
 		global Aback
@@ -299,8 +352,7 @@ class CamWorker(QtCore.QThread):
 
 class WMainProfiler(QtGui.QMainWindow):
 	def __init__(self):
-		super(WMainProfiler, self).__init__()
-		
+		super(WMainProfiler, self).__init__()		
 		self.wcam = WidgetCam()
 		self.wfit3d = WidgetFit3d()	
 		self.wfitx = WidgetFitX()
@@ -363,6 +415,7 @@ class WMainProfiler(QtGui.QMainWindow):
 		#self.wdata.setValues()
 		
 def analice(fname):
+	global AmpX,AmpY,WidthX,WidthY,MeanX,MeanY
 	global data_fit 
 	global distance
 	global date
@@ -462,15 +515,15 @@ def analice(fname):
 	fig.savefig(str("./Fitting/"+str(FILENAME)+"3D.jpg"))
 	#colorbar()
 	eqx = "I="+str(Ampx)+"exp(-(x-"+str(Widthx)+")^2/(2"+str(Meanx)+"^2))"
-	eqy = "I="+str(Ampy)+"exp(-(x-"+str(Widthy)+")^2/(2"+str(Meany)+"^2))"
-	file_data.write(str(distance)+" "+str(Ampx)+" "+str(Widthx)+" "+str(Meanx)+" "+str(Ampy)+" "+str(Widthy)+" "+str(Meany)+"\n")
+	eqy = "I="+str(Ampy)+"exp(-(x-"+str(Widthy)+")^2/(2"+str(Meany)+"^2))"	
 	data_fit=[Ampx,Widthx,Meanx,Ampy,Widthy,Meany]
 	#print(result.best_values)
+	AmpX,AmpY,WidthX,WidthY,MeanX,MeanY=Ampx,Ampy,Widthx,Widthy,Meanx,Meany
 	print "Finish"
 				
 def main():
 	a = QApplication(sys.argv)    
-	a.setWindowIcon(QtGui.QIcon('./Icon/BP_Icon.png'))
+	a.setWindowIcon(QtGui.QIcon('./Icon/BP_Icon.svg'))
 		
 	WMP = WMainProfiler()	
 	sys.exit(a.exec_())			
