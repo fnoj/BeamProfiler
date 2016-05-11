@@ -272,17 +272,32 @@ class WidgetControl(QtGui.QDialog):
 		self.breset.setEnabled(True)
 		file_data.close()
 		fig = figure(figsize=(12,10))
-		date="W11"##############
+		#date="W11"##############
 		lam=632./(10**6)
-		Zd, Ax, Bx, Cx, Ay, By, Cy = loadtxt(str("./Data/"+date+".dat"), unpack = True)		
+		Zd, Ax, Bx, Cx, Ay, By, Cy = loadtxt(str("./Data/"+date+".dat"), unpack = True)
+		
+		def fitwaist(x, Af, Bf, Cf, Df):
+			#"1-d gaussian: gaussian(x, amp, cen, wid)"
+			return Af*(np.sqrt(((x-Bf)/Cf)**2+1))+Df
+		gmod = Model(fitwaist)
+		#Fitting X Axis
+		result = gmod.fit(Ax, x=Zd, Af=250, Bf=30 , Cf=350, Df=100)
+		Zresult = result.best_values
+		
 		def func(x, Af, Bf, Cf, Df):
 			return Af*(np.sqrt(((x-Bf)/Cf)**2+1))+Df
 		(Af, Bf, Cf, Df), _ = curve_fit(func, Zd, Ax)
+		
 		plt.plot(Zd,Ax,'.')
-		plt.plot(Zd,func(Zd, Af, Bf, Cf, Df),linewidth = 2)
-		zr=Cf
+		plt.plot(Zd,result.best_fit,linewidth = 5)
+		print(result.best_values)
+		zr=Zresult.get("Cf")
 		Wo = np.sqrt((zr*lam)/np.pi)
 		X = np.linspace(-600, 600, 1000, endpoint=True)
+		Af=Zresult.get("Af")
+		Bf=Zresult.get("Bf")
+		Cf=Zresult.get("Cf")
+		Df=Zresult.get("Df")
 		plt.plot(X,func(X, Af, Bf, Cf, Df),linewidth = 1)
 		plt.plot(X,func(X, -Af, Bf, Cf, Df),linewidth = 1)
 		fig.savefig(str("./Fitting/"+str(FILENAME)+"WaistX.jpg"))
@@ -292,10 +307,14 @@ class WidgetControl(QtGui.QDialog):
 		
 		fig2 = figure(figsize=(12,10))
 		plt.plot(Zd,Ay,'.')
-		plt.plot(Zd,func(Zd, Af, Bf, Cf, Df),linewidth = 2)
-		zr=Cf
+		plt.plot(Zd,result.best_fit,linewidth = 5)
+		zr=Zresult.get("Cf")
 		Wo = np.sqrt((zr*lam)/np.pi)
 		Y = np.linspace(-600, 600, 1000, endpoint=True)
+		Af=Zresult.get("Af")
+		Bf=Zresult.get("Bf")
+		Cf=Zresult.get("Cf")
+		Df=Zresult.get("Df")		
 		plt.plot(Y,func(Y, Af, Bf, Cf, Df),linewidth = 1)
 		plt.plot(Y,func(Y, -Af, Bf, Cf, Df),linewidth = 1)
 		fig2.savefig(str("./Fitting/"+str(FILENAME)+"WaistY.jpg"))
@@ -318,12 +337,12 @@ class WidgetData(QtGui.QDialog):
 		self.layout.addWidget(self.table)
 		self.table.setRowCount(6)
 		self.table.setColumnCount(2)
-		self.table.setItem(0,0, QTableWidgetItem("Amp x"))
-		self.table.setItem(1,0, QTableWidgetItem("Width x"))
-		self.table.setItem(2,0, QTableWidgetItem("Mean x"))
-		self.table.setItem(3,0, QTableWidgetItem("Amp y"))
-		self.table.setItem(4,0, QTableWidgetItem("Width y"))
-		self.table.setItem(5,0, QTableWidgetItem("Mean y"))
+		self.table.setItem(0,0, QTableWidgetItem("Amp x [micras]"))
+		self.table.setItem(1,0, QTableWidgetItem("Width x [micras]"))
+		self.table.setItem(2,0, QTableWidgetItem("Mean x [micras]"))
+		self.table.setItem(3,0, QTableWidgetItem("Amp y [micras]"))
+		self.table.setItem(4,0, QTableWidgetItem("Width y [micras]"))
+		self.table.setItem(5,0, QTableWidgetItem("Mean y [micras]"))
 		self.setLayout(self.layout)	
 	
 	def setValues(self):
@@ -420,9 +439,9 @@ def analice(fname):
 	global distance
 	global date
 	print "Running analysis..."	
-	fname="lena.jpg"
-	R = Image.open("ruido.jpg")
-	#R = Image.open("./Fitting/"+str(date)+"_background.jpg")
+	#fname="lena.jpg"
+	#R = Image.open("ruido.jpg")
+	R = Image.open("./Fitting/"+str(date)+"_background.jpg")
 	R1=R.convert('L') #Convert to Gray Scale
 	I = Image.open(fname)
 	I1=I.convert('L') #Convert to Gray Scale
@@ -450,7 +469,7 @@ def analice(fname):
 	#Sacar puntos max y min en x y y - Se toman los maximos a lo largo del eje vertical y Horizontal
 	xm=int(abs(np.max (B[:,0])-np.min(B[:,0]))/2)+np.min(B[:,0])
 	ym=int(abs(np.max (B[:,1])-np.min(B[:,1]))/2)+np.min(B[:,1])
-	
+		
 	C=[]
 	D=[]
 	for i in range(N*M):
@@ -467,16 +486,16 @@ def analice(fname):
 
 	gmod = Model(gaussian)
 	#Fitting X Axis
-	result = gmod.fit(D[:,1], x=D[:,0], amp=100, cen=150, wid=50)
+	result = gmod.fit(D[:,1], x=D[:,0]*48, amp=100, cen=xm*48, wid=50)
 	Xresult = result.best_values
 	print "Amp: "+str(Xresult.get("amp"))+", Width: "+str(Xresult.get("wid"))+", Mean: "+str(Xresult.get("cen"))
 
 	fig = figure(figsize=(12,10))
 	ax1 = fig.gca()
-	plt.plot(D[:,0],D[:,1],'.')
-	plt.plot(D[:,0], result.best_fit, 'r-',linewidth = 5)
+	plt.plot(D[:,0]*48,D[:,1],'.')
+	plt.plot(D[:,0]*48, result.best_fit, 'r-',linewidth = 5)
 	#plt.plot(D[:,0],func(D[:,0], Af, Bf, Cf),linewidth = 5)
-	ax1.set_xlabel("x (px)")
+	ax1.set_xlabel("x (micras)")
 	ax1.set_ylabel("Intensity")
 	Ampx=Xresult.get("amp")
 	Widthx=Xresult.get("wid")
@@ -486,14 +505,14 @@ def analice(fname):
 	
 	
 	#Fitting Y Axis
-	result = gmod.fit(C[:,1], x=C[:,0], amp=100, cen=150, wid=50)
+	result = gmod.fit(C[:,1], x=C[:,0]*48, amp=100, cen=ym*48, wid=50)
 	Yresult = result.best_values
 	print "Amp: "+str(Yresult.get("amp"))+", Width: "+str(Yresult.get("wid"))+", Mean: "+str(Yresult.get("cen"))
 	fig = figure(figsize=(12,10))
 	ax2 = fig.gca()
-	plt.plot(C[:,0],C[:,1],'.')
-	plt.plot(C[:,0], result.best_fit, 'r-',linewidth = 5)
-	ax2.set_xlabel("y (px)")
+	plt.plot(C[:,0]*48,C[:,1],'.')
+	plt.plot(C[:,0]*48, result.best_fit, 'r-',linewidth = 5)
+	ax2.set_xlabel("y (micras)")
 	ax2.set_ylabel("Intensity")
 	Ampy=Yresult.get("amp")
 	Widthy=Yresult.get("wid")
