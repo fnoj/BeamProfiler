@@ -300,8 +300,8 @@ class WidgetControl(QtGui.QDialog):
 		Df=Zresult.get("Df")
 		plt.plot(X,func(X, Af, Bf, Cf, Df),linewidth = 1)
 		plt.plot(X,func(X, -Af, Bf, Cf, Df),linewidth = 1)
-		fig.savefig(str("./Fitting/"+str(FILENAME)+"WaistX.jpg"))
-		self.waistx.setPicture(str("./Fitting/"+str(FILENAME)+"WaistX.jpg"))
+		fig.savefig(str("./Fitting/"+str(date)+"WaistX.jpg"))
+		self.waistx.setPicture(str("./Fitting/"+str(date)+"WaistX.jpg"))
 		self.waistx.setGeometry(QRect(10, 60, 350, 200))
 		self.waistx.show()
 		
@@ -317,8 +317,8 @@ class WidgetControl(QtGui.QDialog):
 		Df=Zresult.get("Df")		
 		plt.plot(Y,func(Y, Af, Bf, Cf, Df),linewidth = 1)
 		plt.plot(Y,func(Y, -Af, Bf, Cf, Df),linewidth = 1)
-		fig2.savefig(str("./Fitting/"+str(FILENAME)+"WaistY.jpg"))
-		self.waisty.setPicture(str("./Fitting/"+str(FILENAME)+"WaistY.jpg"))
+		fig2.savefig(str("./Fitting/"+str(date)+"WaistY.jpg"))
+		self.waisty.setPicture(str("./Fitting/"+str(date)+"WaistY.jpg"))
 		self.waisty.setGeometry(QRect(60, 120, 350, 200))
 		self.waisty.show()
 				
@@ -357,7 +357,7 @@ class WidgetData(QtGui.QDialog):
 class CamWorker(QtCore.QThread): 
     def __init__(self): 
 		super(CamWorker, self).__init__() 
-		self.cap = cv.CaptureFromCAM(-1)
+		self.cap = cv.CaptureFromCAM(1)
 		capture_size = (640/2,480/2)
 		cv.SetCaptureProperty(self.cap, cv.CV_CAP_PROP_FRAME_WIDTH, capture_size[0])
 		cv.SetCaptureProperty(self.cap, cv.CV_CAP_PROP_FRAME_HEIGHT, capture_size[1])
@@ -469,7 +469,10 @@ def analice(fname):
 	#Sacar puntos max y min en x y y - Se toman los maximos a lo largo del eje vertical y Horizontal
 	xm=int(abs(np.max (B[:,0])-np.min(B[:,0]))/2)+np.min(B[:,0])
 	ym=int(abs(np.max (B[:,1])-np.min(B[:,1]))/2)+np.min(B[:,1])
-		
+	a[xm:xm+1] = 1
+	a[:,ym:ym+1] = 1
+	plt.imshow(a)
+	plt.show()	
 	C=[]
 	D=[]
 	for i in range(N*M):
