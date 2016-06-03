@@ -20,6 +20,7 @@ matplotlib.rc('ytick', labelsize=45)
 matplotlib.rc('axes', labelsize=45)
 matplotlib.rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
 matplotlib.rc('text', usetex=True)
+matplotlib.rc('legend', fontsize=30)
 date = time.strftime("%d%m%y%H%M")
 file_data = open(str("./Data/"+date+".dat"),"w")
 data_fit=0
@@ -185,15 +186,16 @@ class WidgetControl(QtGui.QDialog):
 		self.lineEdit.resize(100,25)
 		self.lineEdit.setFont(QFont("Arial",11))
 		self.lineEdit.setValidator(QIntValidator())		
-		self.lineEdit.setEnabled(False)
+		self.lineEdit.setEnabled(True)
 		self.bcapture = QtGui.QPushButton('&Capture', self)
 		self.bcapture.clicked.connect(self.capture)
-		self.bcapture.setEnabled(False)
-		self.bback = QtGui.QPushButton('&Backgroud', self)
-		self.bback.clicked.connect(self.back)	
+		self.bcapture.setEnabled(True)		
+		#self.bback = QtGui.QPushButton('&Backgroud', self)
+		#self.bback.clicked.connect(self.back)	
 		self.bwaist = QtGui.QPushButton('&Waist', self)
 		self.bwaist.clicked.connect(self.fitwaist)
-		self.bwaist.setEnabled(False)
+		self.bwaist.setEnabled(True)
+		#self.bwaist.setEnabled(False)
 		self.breset = QtGui.QPushButton('&Reset', self)
 		self.breset.clicked.connect(self.reset)
 		self.breset.setEnabled(False)
@@ -201,7 +203,7 @@ class WidgetControl(QtGui.QDialog):
 		layout.addWidget(self.labeldistance)
 		layout.addWidget(self.lineEdit)
 		layout.addWidget(self.bcapture)		
-		layout.addWidget(self.bback)		
+		#layout.addWidget(self.bback)		
 		layout.addWidget(self.bwaist)
 		layout.addWidget(self.breset)
 		self.setLayout(layout)
@@ -230,95 +232,147 @@ class WidgetControl(QtGui.QDialog):
 		self.wcontinue.show()
 		self.bcapture.setEnabled(False)
 		self.bwaist.setEnabled(False)
-		self.bback.setEnabled(False)
 		self.breset.setEnabled(False)
 		self.lineEdit.setEnabled(False)
 		
 	
-	def back(self):
-		global Aback
-		global Bback
-		self.wcam.savePhoto("_background")
-		Ib = Image.open(str("./Fitting/"+str(date)+"_background.jpg"))
-		I1b=Ib.convert('L')
-		ab=np.asarray(I1b,dtype=np.uint8)/255.0
-		Nb=ab.shape[0]
-		Mb=ab.shape[1]
-		max=np.max(ab)
-		xb=np.arange(Mb)
-		yb=np.arange(Nb)
-		Xb,Yb = meshgrid(xb,yb)
-		Ab=[]
-		Bb=[]
-		for i in range(Nb):
-			for j in range(Mb):
-				Ab.append([i,j,ab[i][j]])
-				if ab[i][j] ==max:
-					Bb.append([i,j,ab[i][j]])
-		Ab = np.asarray(Ab)
-		Bb = np.asarray(Bb)
-		Aback=Ab 
-		Bback=Bb
-		self.bcapture.setEnabled(True)
-		self.bwaist.setEnabled(True)
-		self.bback.setEnabled(False)
-		self.lineEdit.setEnabled(True)
+	#def back(self):
+		#global Aback
+		#global Bback
+		#self.wcam.savePhoto("_background")
+		#Ib = Image.open(str("./Fitting/"+str(date)+"_background.jpg"))
+		#I1b=Ib.convert('L')
+		#ab=np.asarray(I1b,dtype=np.uint8)/255.0
+		#Nb=ab.shape[0]
+		#Mb=ab.shape[1]
+		#max=np.max(ab)
+		#xb=np.arange(Mb)
+		#yb=np.arange(Nb)
+		#Xb,Yb = meshgrid(xb,yb)
+		#Ab=[]
+		#Bb=[]
+		#for i in range(Nb):
+		#	for j in range(Mb):
+		#		Ab.append([i,j,ab[i][j]])
+		#		if ab[i][j] ==max:
+		#			Bb.append([i,j,ab[i][j]])
+		#Ab = np.asarray(Ab)
+		#Bb = np.asarray(Bb)
+		#Aback=Ab 
+		#Bback=Bb
+		#self.bcapture.setEnabled(True)
+		#self.bwaist.setEnabled(True)
+		#self.bback.setEnabled(False)
+		#self.lineEdit.setEnabled(True)
 		
 	def fitwaist(self):
 		global file_data
+		global distance
 		global FILENAME
 		self.bcapture.setEnabled(False)
 		self.lineEdit.setEnabled(False)
 		self.breset.setEnabled(True)
 		file_data.close()
 		fig = figure(figsize=(12,10))
-		#date="W11"##############
 		lam=632./(10**6)
 		Zd, Ax, Bx, Cx, Ay, By, Cy = loadtxt(str("./Data/"+date+".dat"), unpack = True)
+		Bx=Bx
+		By=By
 		
-		def fitwaist(x, Af, Bf, Cf, Df):
-			#"1-d gaussian: gaussian(x, amp, cen, wid)"
-			return Af*(np.sqrt(((x-Bf)/Cf)**2+1))+Df
-		gmod = Model(fitwaist)
+		def fitw(x, Af, Bf, Cf):##PARA FITEAR CINTURA
+			return Af*(np.sqrt(((x-Bf)/Cf)**2+1))
+		gmod = Model(fitw)
 		#Fitting X Axis
-		result = gmod.fit(Ax, x=Zd, Af=250, Bf=30 , Cf=350, Df=100)
+		
+		# PARA X
+		fig = figure(figsize=(12,10))
+		ax2 = fig.gca()
+		result = gmod.fit(Bx, x=Zd, Af=0.5, Bf=30 , Cf=350)
 		Zresult = result.best_values
-		
-		def func(x, Af, Bf, Cf, Df):
-			return Af*(np.sqrt(((x-Bf)/Cf)**2+1))+Df
-		(Af, Bf, Cf, Df), _ = curve_fit(func, Zd, Ax)
-		
-		plt.plot(Zd,Ax,'.')
-		plt.plot(Zd,result.best_fit,linewidth = 5)
-		print(result.best_values)
-		zr=Zresult.get("Cf")
-		Wo = np.sqrt((zr*lam)/np.pi)
-		X = np.linspace(-600, 600, 1000, endpoint=True)
+		lam=632./(10**6)
+		print result.fit_report()
 		Af=Zresult.get("Af")
+		Wo=Af
+		Wo=float("{0:.3f}".format(Wo))
 		Bf=Zresult.get("Bf")
+		Bf=float("{0:.3f}".format(Bf))
 		Cf=Zresult.get("Cf")
-		Df=Zresult.get("Df")
-		plt.plot(X,func(X, Af, Bf, Cf, Df),linewidth = 1)
-		plt.plot(X,func(X, -Af, Bf, Cf, Df),linewidth = 1)
-		fig.savefig(str("./Fitting/"+str(date)+"WaistX.jpg"))
-		self.waistx.setPicture(str("./Fitting/"+str(date)+"WaistX.jpg"))
+		Cf=float("{0:.3f}".format(Cf))
+		Zr=np.pi*Wo*Wo/lam
+		Zr=float("{0:.3f}".format(Zr))
+		#Zr=np.pi*Wo*Wo/lam
+		#Wo = np.sqrt((zr*lam)/np.pi)/100 ## /100 Pasando a micras CALCULADO
+		#Wo=float("{0:.6f}".format(Wo))
+		Div = lam/(np.pi*Wo)
+		Div=float("{0:.5f}".format(Div))
+		errWo=0.018
+		errZr=(2*np.pi*Wo/lam)*errWo
+		errZr=float("{0:.2f}".format(errZr))
+		errDiv=(lam*errWo)/(np.pi*Wo*Wo)
+		errDiv=float("{0:.5f}".format(errDiv))
+		par=result.params["Af"]
+		plt.xlabel(r"$Z (mm)$", fontsize = 27, color = (0,0,0))
+		plt.ylabel(r"$W_x (\mu m)$", fontsize = 27, color = (0,0,0))
+		Eqx=str(Af)+"\sqrt${1+\frac{(x-"+str(Bf)+")^2}{"+str(Cf)+"}}"
+		#plt.text(x = 1, y = 0.0, s = r''+Eqx+'' , fontsize = 24)
+		plt.text(250, -0.08, r"$W_x$: "+str(Wo)+" $\pm$ "+str(errWo)+" $\mu m$\n$Z_r$: "+str(Zr)+" $\pm$ "+str(errZr)+" $mm$ \n$\Theta$: "+str(Div)+" $\pm$ "+str(errDiv)+" $rad$", style='italic', fontsize = 24,
+			bbox={'facecolor':'white', 'alpha':0.5, 'pad':10})
+		plt.grid()
+		X = np.linspace(-800, 800, 1000, endpoint=True)
+		plt.title(r'$Ancho\, horizontal\, del\, haz\, en\, funci\acute{o}n\, de\, la\, posici\acute{o}n.$', fontsize = 45)
+		plt.plot(X,fitw(X, Af, Bf, Cf),linestyle="--",linewidth = 3,color = (0,1,0.5))
+		plt.plot(X,fitw(X, -Af, Bf, Cf),linestyle="--",linewidth = 3,color = (0,1,0.5))
+		plt.plot(Zd,Bx,'.',markersize=15,color = (1,0,0))
+		plt.errorbar(Zd,Bx,xerr=1,linestyle='None',fmt="--o")
+		fig.set_size_inches(18.5, 10.5)		
+		fig.savefig(str("./Fitting/"+str(date)+"WaistX.png"))
+		self.waistx.setPicture(str("./Fitting/"+str(date)+"WaistX.png"))
 		self.waistx.setGeometry(QRect(10, 60, 350, 200))
 		self.waistx.show()
 		
+		
+		(Af, Bf, Cf), _ = curve_fit(fitw, Zd, By)
 		fig2 = figure(figsize=(12,10))
-		plt.plot(Zd,Ay,'.')
-		plt.plot(Zd,result.best_fit,linewidth = 5)
-		zr=Zresult.get("Cf")
-		Wo = np.sqrt((zr*lam)/np.pi)
-		Y = np.linspace(-600, 600, 1000, endpoint=True)
+		result = gmod.fit(By, x=Zd, Af=0.5, Bf=30 , Cf=350)
+		Zresult = result.best_values
+		lam=632./(10**6)
 		Af=Zresult.get("Af")
+		Wo=Af
+		Wo=float("{0:.3f}".format(Wo))
 		Bf=Zresult.get("Bf")
+		Bf=float("{0:.3f}".format(Bf))
 		Cf=Zresult.get("Cf")
-		Df=Zresult.get("Df")		
-		plt.plot(Y,func(Y, Af, Bf, Cf, Df),linewidth = 1)
-		plt.plot(Y,func(Y, -Af, Bf, Cf, Df),linewidth = 1)
-		fig2.savefig(str("./Fitting/"+str(date)+"WaistY.jpg"))
-		self.waisty.setPicture(str("./Fitting/"+str(date)+"WaistY.jpg"))
+		Cf=float("{0:.3f}".format(Cf))
+		Zr=np.pi*Wo*Wo/lam
+		Zr=float("{0:.3f}".format(Zr))
+		#Zr=np.pi*Wo*Wo/lam
+		#Wo = np.sqrt((zr*lam)/np.pi)/100 ## /100 Pasando a micras CALCULADO
+		#Wo=float("{0:.6f}".format(Wo))
+		print result.fit_report()
+		Div = lam/(np.pi*Wo)
+		Div=float("{0:.5f}".format(Div))
+		errWo=0.022
+		errZr=(2*np.pi*Wo/lam)*errWo
+		errZr=float("{0:.2f}".format(errZr))
+		errDiv=(lam*errWo)/(np.pi*Wo*Wo)
+		errDiv=float("{0:.5f}".format(errDiv))
+		par=result.params["Af"]
+		plt.xlabel(r"$Z (mm)$", fontsize = 27, color = (0,0,0))
+		plt.ylabel(r"$W_y (\mu m)$", fontsize = 27, color = (0,0,0))
+		Eqx=str(Af)+"\sqrt${1+\frac{(y-"+str(Bf)+")^2}{"+str(Cf)+"}}"
+		#plt.text(x = 1, y = 0.0, s = r''+Eqx+'' , fontsize = 24)
+		plt.text(350, -0.08, r"$W_y$: "+str(Wo)+" $\pm$ "+str(errWo)+" $\mu m$\n$Z_r$: "+str(Zr)+" $\pm$ "+str(errZr)+" $mm$ \n$\Theta$: "+str(Div)+" $\pm$ "+str(errDiv)+" $rad$", style='italic', fontsize = 24,
+			bbox={'facecolor':'white', 'alpha':0.5, 'pad':10})
+		plt.grid()
+		plt.title(r'$Ancho\, vertical\, del\, haz\, en\, funci\acute{o}n\, de\, la\, posici\acute{o}n.$', fontsize = 45)
+		X = np.linspace(-800, 800, 1000, endpoint=True)
+		plt.plot(X,fitw(X, Af, Bf, Cf),linestyle="--",linewidth = 3,color = (0,1,0.5))
+		plt.plot(X,fitw(X, -Af, Bf, Cf),linestyle="--",linewidth = 3,color = (0,1,0.5))
+		plt.plot(Zd,By,'.',markersize=15,color = (1,0,0))
+		plt.errorbar(Zd,By,xerr=1,linestyle='None',fmt="--o")
+		fig2.set_size_inches(18.5, 10.5)		
+		fig2.savefig(str("./Fitting/"+str(date)+"WaistY.png"))
+		self.waisty.setPicture(str("./Fitting/"+str(date)+"WaistY.png"))
 		self.waisty.setGeometry(QRect(60, 120, 350, 200))
 		self.waisty.show()
 				
@@ -335,14 +389,15 @@ class WidgetData(QtGui.QDialog):
 		self.layout = QtGui.QGridLayout() 
 		self.table = QtGui.QTableWidget()
 		self.layout.addWidget(self.table)
-		self.table.setRowCount(6)
+		self.table.setRowCount(7)
 		self.table.setColumnCount(2)
-		self.table.setItem(0,0, QTableWidgetItem("Amp x [micras]"))
-		self.table.setItem(1,0, QTableWidgetItem("Width x [micras]"))
-		self.table.setItem(2,0, QTableWidgetItem("Mean x [micras]"))
-		self.table.setItem(3,0, QTableWidgetItem("Amp y [micras]"))
-		self.table.setItem(4,0, QTableWidgetItem("Width y [micras]"))
-		self.table.setItem(5,0, QTableWidgetItem("Mean y [micras]"))
+		self.table.setItem(0,0, QTableWidgetItem('Distance [mm]'))		
+		self.table.setItem(1,0, QTableWidgetItem("Amp x [mm]"))
+		self.table.setItem(2,0, QTableWidgetItem("Width x [mm]"))
+		self.table.setItem(3,0, QTableWidgetItem("Mean x [mm]"))
+		self.table.setItem(4,0, QTableWidgetItem("Amp y [mm]"))
+		self.table.setItem(5,0, QTableWidgetItem("Width y [mm]"))
+		self.table.setItem(6,0, QTableWidgetItem("Mean y [mm]"))
 		self.setLayout(self.layout)	
 	
 	def setValues(self):
@@ -352,12 +407,13 @@ class WidgetData(QtGui.QDialog):
 		self.table.setItem(3,1, QTableWidgetItem(str(data_fit[3])))
 		self.table.setItem(4,1, QTableWidgetItem(str(data_fit[4])))
 		self.table.setItem(5,1, QTableWidgetItem(str(data_fit[5])))
+		self.table.setItem(6,1, QTableWidgetItem(str(data_fit[6])))
 		self.table.update()
 	
 class CamWorker(QtCore.QThread): 
     def __init__(self): 
 		super(CamWorker, self).__init__() 
-		self.cap = cv.CaptureFromCAM(1)
+		self.cap = cv.CaptureFromCAM(-1)
 		capture_size = (640/2,480/2)
 		cv.SetCaptureProperty(self.cap, cv.CV_CAP_PROP_FRAME_WIDTH, capture_size[0])
 		cv.SetCaptureProperty(self.cap, cv.CV_CAP_PROP_FRAME_HEIGHT, capture_size[1])
@@ -419,7 +475,7 @@ class WMainProfiler(QtGui.QMainWindow):
 		self.wfity.setGeometry(QRect(380, 420, 350, 200))
 		self.wfity.show()
 		
-		self.wdata.setGeometry(QRect(880, 120, 239, 225))
+		self.wdata.setGeometry(QRect(880, 120, 239, 255))
 		self.wdata.show()
 		
 		self.wcontrol.setGeometry(QRect(880, 420, 100, 200))
@@ -435,23 +491,24 @@ class WMainProfiler(QtGui.QMainWindow):
 		
 def analice(fname):
 	global AmpX,AmpY,WidthX,WidthY,MeanX,MeanY
-	global data_fit 
 	global distance
+	global data_fit 
 	global date
 	print "Running analysis..."	
-	#fname="lena.jpg"
 	#R = Image.open("ruido.jpg")
-	R = Image.open("./Fitting/"+str(date)+"_background.jpg")
-	R1=R.convert('L') #Convert to Gray Scale
+	#R = Image.open("./Fitting/"+str(date)+"_background.jpg")
+	#R1=R.convert('L') #Convert to Gray Scale
 	I = Image.open(fname)
 	I1=I.convert('L') #Convert to Gray Scale
 	#I1.show()
-	Ra=np.asarray(R1,dtype=np.uint8)/255.0
+	#Ra=np.asarray(R1,dtype=np.uint8)/255.0
 	a=np.asarray(I1,dtype=np.uint8)/255.0 #convierte I1 en una matriz
-
-	a=a-Ra
+	#a=a-Ra
 	N=a.shape[0]
 	M=a.shape[1]
+	a=a[2:N-2,2:M-2]
+	N=N-4
+	M=M-4	
 	max=np.max(a)
 	x=np.arange(N)
 	y=np.arange(M)
@@ -469,10 +526,6 @@ def analice(fname):
 	#Sacar puntos max y min en x y y - Se toman los maximos a lo largo del eje vertical y Horizontal
 	xm=int(abs(np.max (B[:,0])-np.min(B[:,0]))/2)+np.min(B[:,0])
 	ym=int(abs(np.max (B[:,1])-np.min(B[:,1]))/2)+np.min(B[:,1])
-	a[xm:xm+1] = 1
-	a[:,ym:ym+1] = 1
-	plt.imshow(a)
-	plt.show()	
 	C=[]
 	D=[]
 	for i in range(N*M):
@@ -483,73 +536,93 @@ def analice(fname):
 	
 	C=np.asarray(C)  # Para x
 	D=np.asarray(D)  # Para y
-	def gaussian(x, amp, cen, wid):
+	def gaussian(x, amp, cen, wid, hei):
 		#"1-d gaussian: gaussian(x, amp, cen, wid)"
-		return (amp/(sqrt(2*pi)*wid)) * exp(-(x-cen)**2 /(2*wid**2))
+		return (amp/(sqrt(2*pi)*wid)) * exp(-(x-cen)**2 /(2*wid**2)) + hei
 
 	gmod = Model(gaussian)
+	fa=0.0093  #Factor de Ajuste px to mm
 	#Fitting X Axis
-	result = gmod.fit(D[:,1], x=D[:,0]*48, amp=100, cen=xm*48, wid=50)
+	
+	result = gmod.fit(D[:,1], x=D[:,0]*fa-0.13, amp=1, cen=xm*fa-0.13, wid=50*fa, hei=0.1)
 	Xresult = result.best_values
-	print "Amp: "+str(Xresult.get("amp"))+", Width: "+str(Xresult.get("wid"))+", Mean: "+str(Xresult.get("cen"))
-
+	print "Amp: "+str(Xresult.get("amp"))+", Width: "+str(Xresult.get("wid"))+", Mean: "+str(Xresult.get("cen"))+", Height: "+str(Xresult.get("hei"))
+	print result.fit_report()
 	fig = figure(figsize=(12,10))
 	ax1 = fig.gca()
-	plt.plot(D[:,0]*48,D[:,1],'.')
-	plt.plot(D[:,0]*48, result.best_fit, 'r-',linewidth = 5)
+	plt.grid()
+	plt.plot(D[:,0]*fa-0.13,D[:,1],'.',markersize=10,color = (0,0,1),label="Data")
+	plt.plot(D[:,0]*fa-0.13, result.best_fit, 'r-',linestyle="--",linewidth = 5,color = (0,1,0.5),label="Gaussian Fit")	
+	plt.legend(bbox_to_anchor=(1.05, 1), loc=1, borderaxespad=0.)
 	#plt.plot(D[:,0],func(D[:,0], Af, Bf, Cf),linewidth = 5)
-	ax1.set_xlabel("x (micras)")
-	ax1.set_ylabel("Intensity")
+	ax1.set_xlabel(r'$x\, [\mu m]$')
+	ax1.set_ylabel(r'$Intensity$')
 	Ampx=Xresult.get("amp")
 	Widthx=Xresult.get("wid")
 	Meanx=Xresult.get("cen")
 	fig.set_size_inches(18.5, 10.5)
 	fig.savefig(str("./Fitting/"+str(FILENAME)+"X.jpg"))
 	
-	
 	#Fitting Y Axis
-	result = gmod.fit(C[:,1], x=C[:,0]*48, amp=100, cen=ym*48, wid=50)
+	result = gmod.fit(C[:,1], x=C[:,0]*fa, amp=1, cen=ym*fa, wid=50*fa, hei=0.1)
 	Yresult = result.best_values
-	print "Amp: "+str(Yresult.get("amp"))+", Width: "+str(Yresult.get("wid"))+", Mean: "+str(Yresult.get("cen"))
+	print "Amp: "+str(Yresult.get("amp"))+", Width: "+str(Yresult.get("wid"))+", Mean: "+str(Yresult.get("cen"))+", Height: "+str(Yresult.get("hei"))
+	print result.fit_report()
 	fig = figure(figsize=(12,10))
 	ax2 = fig.gca()
-	plt.plot(C[:,0]*48,C[:,1],'.')
-	plt.plot(C[:,0]*48, result.best_fit, 'r-',linewidth = 5)
-	ax2.set_xlabel("y (micras)")
-	ax2.set_ylabel("Intensity")
+	plt.grid()
+	plt.plot(C[:,0]*fa,C[:,1],'.',markersize=10,color = (0,0,1),label="Data")
+	plt.plot(C[:,0]*fa, result.best_fit, 'r-',linestyle="--",linewidth = 5,color = (0,1,0.5),label="Gaussian Fit")	
+	plt.legend(bbox_to_anchor=(1.05, 1), loc=1, borderaxespad=0.)
+	#plt.plot(D[:,0],func(D[:,0], Af, Bf, Cf),linewidth = 5)
+	ax2.set_xlabel(r'$y\, [\mu m]$')
+	ax2.set_ylabel(r'$Intensity$')
 	Ampy=Yresult.get("amp")
 	Widthy=Yresult.get("wid")
 	Meany=Yresult.get("cen")
 	fig.set_size_inches(18.5, 10.5)
 	fig.savefig(str("./Fitting/"+str(FILENAME)+"Y.jpg"))
 	
-	fig=figure(figsize = (20,20))
-	ax = fig.gca(projection='3d')
-	figura = ax.plot_surface(X,Y,a,cmap = cm.jet,linewidth = 0)
-	fig.colorbar(figura, shrink=0.5, aspect=5)  
-	ax.set_xlabel("x")
-	ax.set_ylabel("y")
-	ax.set_zlabel("Intensity")
-	ax.view_init(elev=45, azim=45)
-	cset = ax.contour(X, Y, a, zdir='x', offset=-20, cmap=cm.jet)
-	cset = ax.contour(X, Y, a, zdir='y', offset=-20, cmap=cm.jet)
-	fig.set_size_inches(18.5, 10.5)
-	fig.savefig(str("./Fitting/"+str(FILENAME)+"3D.jpg"))
+	#fig=figure(figsize = (20,20))	
+	#ax = fig.gca(projection='3d')
+	#figura = ax.plot_surface(X,Y,a,cmap = cm.jet,linewidth = 0)
+	#fig.colorbar(figura, shrink=0.5, aspect=5)  
+	#ax.set_xlabel("x")
+	#ax.set_ylabel("y")
+	#ax.set_zlabel("Intensity")
+	#ax.view_init(elev=45, azim=45)
+	#cset = ax.contour(X, Y, a, zdir='x', offset=-20, cmap=cm.jet)
+	#cset = ax.contour(X, Y, a, zdir='y', offset=-20, cmap=cm.jet)
+	#fig.set_size_inches(18.5, 10.5)
+	#fig.savefig(str("./Fitting/"+str(FILENAME)+"3D.jpg"))
 	#colorbar()
+	
+	fig=figure(figsize = (20,20))	
+	ax = fig.gca()#projection='3d')
+	ax.set_xlabel("x [px]")
+	ax.set_ylabel("y [px]")
+	a2d=a
+	a2d[int(xm):int(xm+1)] = int(1)
+	a2d[:,int(ym):int(ym+1)] = int(1)
+	plt.imshow(a2d)
+	fig.set_size_inches(18.5, 10.5)
+	fig.savefig(str("./Fitting/"+str(FILENAME)+"3D.jpg"))	
+	
 	eqx = "I="+str(Ampx)+"exp(-(x-"+str(Widthx)+")^2/(2"+str(Meanx)+"^2))"
 	eqy = "I="+str(Ampy)+"exp(-(x-"+str(Widthy)+")^2/(2"+str(Meany)+"^2))"	
-	data_fit=[Ampx,Widthx,Meanx,Ampy,Widthy,Meany]
+	Widthx=Widthx*2
+	Widthy=Widthy*2	
+	data_fit=[distance,Ampx,Widthx,Meanx,Ampy,Widthy,Meany]
 	#print(result.best_values)
 	AmpX,AmpY,WidthX,WidthY,MeanX,MeanY=Ampx,Ampy,Widthx,Widthy,Meanx,Meany
 	print "Finish"
 				
 def main():
-	a = QApplication(sys.argv)    
-	a.setWindowIcon(QtGui.QIcon('./Icon/BP_Icon.svg'))
+	app = QApplication(sys.argv)    
+	app.setWindowIcon(QtGui.QIcon('./Icon/BP_Icon.svg'))
 		
 	WMP = WMainProfiler()	
-	sys.exit(a.exec_())			
+	sys.exit(app.exec_())			
    
 if __name__=='__main__':
 	main()
-
