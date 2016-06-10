@@ -34,6 +34,7 @@ WidthX=0
 WidthY=0
 MeanX=0
 MeanY=0
+WaveL=0
 
 class WidgetContinue(QtGui.QDialog):
 	global AmpX,AmpY,WidthX,WidthY,MeanX,MeanY,distance
@@ -71,7 +72,6 @@ class WidgetContinue(QtGui.QDialog):
 		self.bwai.setEnabled(True)
 		self.lEdit.setEnabled(True)
 		self.hide()
-		
 
 class WidgetCam(QtGui.QDialog):
 	def __init__(self, parent=None):
@@ -180,6 +180,12 @@ class WidgetControl(QtGui.QDialog):
 	def __init__(self,wcamo,wfitxo,wfityo,wfit3do,wdatao,parent=None):
 		QtGui.QDialog.__init__(self,parent)
 		self.setWindowTitle("Control")
+		self.labelwl = QtGui.QLabel()
+		self.labelwl.setText("Wavelenght [nm]")
+		self.lineEditwl = QtGui.QLineEdit()
+		self.lineEditwl.resize(100,25)
+		self.lineEditwl.setFont(QFont("Arial",11))
+		self.lineEditwl.setValidator(QIntValidator())		
 		self.labeldistance = QtGui.QLabel()
 		self.labeldistance.setText("Distance [mm]")
 		self.lineEdit = QtGui.QLineEdit()
@@ -200,6 +206,8 @@ class WidgetControl(QtGui.QDialog):
 		self.breset.clicked.connect(self.reset)
 		self.breset.setEnabled(False)
 		layout = QtGui.QVBoxLayout(self)
+		layout.addWidget(self.labelwl)
+		layout.addWidget(self.lineEditwl)
 		layout.addWidget(self.labeldistance)
 		layout.addWidget(self.lineEdit)
 		layout.addWidget(self.bcapture)		
@@ -269,12 +277,15 @@ class WidgetControl(QtGui.QDialog):
 		global file_data
 		global distance
 		global FILENAME
+		global WaveL
 		self.bcapture.setEnabled(False)
 		self.lineEdit.setEnabled(False)
+		self.lineEditwl.setEnabled(False)
 		self.breset.setEnabled(True)
 		file_data.close()
 		fig = figure(figsize=(12,10))
-		lam=632./(10**6)
+		WaveL=float(self.lineEditwl.text())/(10**6) ## Longitud de onda en mm
+		print WaveL
 		Zd, Ax, Bx, Cx, Ay, By, Cy = loadtxt(str("./Data/"+date+".dat"), unpack = True)
 		Bx=Bx
 		By=By
@@ -289,7 +300,7 @@ class WidgetControl(QtGui.QDialog):
 		ax2 = fig.gca()
 		result = gmod.fit(Bx, x=Zd, Af=0.5, Bf=30 , Cf=350)
 		Zresult = result.best_values
-		lam=632./(10**6)
+		lam=WaveL
 		print result.fit_report()
 		Af=Zresult.get("Af")
 		Wo=Af
@@ -312,10 +323,10 @@ class WidgetControl(QtGui.QDialog):
 		errDiv=float("{0:.5f}".format(errDiv))
 		par=result.params["Af"]
 		plt.xlabel(r"$Z (mm)$", fontsize = 27, color = (0,0,0))
-		plt.ylabel(r"$W_x (\mu m)$", fontsize = 27, color = (0,0,0))
+		plt.ylabel(r"$W_x (\mm)$", fontsize = 27, color = (0,0,0))
 		Eqx=str(Af)+"\sqrt${1+\frac{(x-"+str(Bf)+")^2}{"+str(Cf)+"}}"
 		#plt.text(x = 1, y = 0.0, s = r''+Eqx+'' , fontsize = 24)
-		plt.text(250, -0.08, r"$W_x$: "+str(Wo)+" $\pm$ "+str(errWo)+" $\mu m$\n$Z_r$: "+str(Zr)+" $\pm$ "+str(errZr)+" $mm$ \n$\Theta$: "+str(Div)+" $\pm$ "+str(errDiv)+" $rad$", style='italic', fontsize = 24,
+		plt.text(250, -0.08, r"$W_x$: "+str(Wo)+" $\pm$ "+str(errWo)+" $\mm$\n$Z_r$: "+str(Zr)+" $\pm$ "+str(errZr)+" $mm$ \n$\Theta$: "+str(Div)+" $\pm$ "+str(errDiv)+" $rad$", style='italic', fontsize = 24,
 			bbox={'facecolor':'white', 'alpha':0.5, 'pad':10})
 		plt.grid()
 		X = np.linspace(-800, 800, 1000, endpoint=True)
@@ -335,7 +346,7 @@ class WidgetControl(QtGui.QDialog):
 		fig2 = figure(figsize=(12,10))
 		result = gmod.fit(By, x=Zd, Af=0.5, Bf=30 , Cf=350)
 		Zresult = result.best_values
-		lam=632./(10**6)
+		lam=WaveL
 		Af=Zresult.get("Af")
 		Wo=Af
 		Wo=float("{0:.3f}".format(Wo))
@@ -358,10 +369,10 @@ class WidgetControl(QtGui.QDialog):
 		errDiv=float("{0:.5f}".format(errDiv))
 		par=result.params["Af"]
 		plt.xlabel(r"$Z (mm)$", fontsize = 27, color = (0,0,0))
-		plt.ylabel(r"$W_y (\mu m)$", fontsize = 27, color = (0,0,0))
+		plt.ylabel(r"$W_y (\mm)$", fontsize = 27, color = (0,0,0))
 		Eqx=str(Af)+"\sqrt${1+\frac{(y-"+str(Bf)+")^2}{"+str(Cf)+"}}"
 		#plt.text(x = 1, y = 0.0, s = r''+Eqx+'' , fontsize = 24)
-		plt.text(350, -0.08, r"$W_y$: "+str(Wo)+" $\pm$ "+str(errWo)+" $\mu m$\n$Z_r$: "+str(Zr)+" $\pm$ "+str(errZr)+" $mm$ \n$\Theta$: "+str(Div)+" $\pm$ "+str(errDiv)+" $rad$", style='italic', fontsize = 24,
+		plt.text(350, -0.08, r"$W_y$: "+str(Wo)+" $\pm$ "+str(errWo)+" $\mm$\n$Z_r$: "+str(Zr)+" $\pm$ "+str(errZr)+" $mm$ \n$\Theta$: "+str(Div)+" $\pm$ "+str(errDiv)+" $rad$", style='italic', fontsize = 24,
 			bbox={'facecolor':'white', 'alpha':0.5, 'pad':10})
 		plt.grid()
 		plt.title(r'$Ancho\, vertical\, del\, haz\, en\, funci\acute{o}n\, de\, la\, posici\acute{o}n.$', fontsize = 45)
@@ -378,7 +389,6 @@ class WidgetControl(QtGui.QDialog):
 				
 	def reset(self):
 		file_data = open(str("./Data/"+date+".dat"),"w")
-		self.bback.setEnabled(True)
 		self.breset.setEnabled(False)
 		self.bwaist.setEnabled(False)
 		
@@ -555,7 +565,7 @@ def analice(fname):
 	plt.plot(D[:,0]*fa-0.13, result.best_fit, 'r-',linestyle="--",linewidth = 5,color = (0,1,0.5),label="Gaussian Fit")	
 	plt.legend(bbox_to_anchor=(1.05, 1), loc=1, borderaxespad=0.)
 	#plt.plot(D[:,0],func(D[:,0], Af, Bf, Cf),linewidth = 5)
-	ax1.set_xlabel(r'$x\, [\mu m]$')
+	ax1.set_xlabel(r'$x\, [mm]$')
 	ax1.set_ylabel(r'$Intensity$')
 	Ampx=Xresult.get("amp")
 	Widthx=Xresult.get("wid")
@@ -575,7 +585,7 @@ def analice(fname):
 	plt.plot(C[:,0]*fa, result.best_fit, 'r-',linestyle="--",linewidth = 5,color = (0,1,0.5),label="Gaussian Fit")	
 	plt.legend(bbox_to_anchor=(1.05, 1), loc=1, borderaxespad=0.)
 	#plt.plot(D[:,0],func(D[:,0], Af, Bf, Cf),linewidth = 5)
-	ax2.set_xlabel(r'$y\, [\mu m]$')
+	ax2.set_xlabel(r'$y\, [mm]$')
 	ax2.set_ylabel(r'$Intensity$')
 	Ampy=Yresult.get("amp")
 	Widthy=Yresult.get("wid")
