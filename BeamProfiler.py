@@ -185,7 +185,7 @@ class WidgetControl(QtGui.QDialog):
 		self.lineEditwl = QtGui.QLineEdit()
 		self.lineEditwl.resize(100,25)
 		self.lineEditwl.setFont(QFont("Arial",11))
-		self.lineEditwl.setValidator(QIntValidator())		
+		self.lineEditwl.setValidator(QDoubleValidator())		
 		self.labeldistance = QtGui.QLabel()
 		self.labeldistance.setText("Distance [mm]")
 		self.lineEdit = QtGui.QLineEdit()
@@ -286,7 +286,8 @@ class WidgetControl(QtGui.QDialog):
 		fig = figure(figsize=(12,10))
 		WaveL=float(self.lineEditwl.text())/(10**6) ## Longitud de onda en mm
 		print WaveL
-		Zd, Ax, Bx, Cx, Ay, By, Cy = loadtxt(str("./Data/"+date+".dat"), unpack = True)
+		#Zd, Ax, Bx, Cx, Ay, By, Cy = loadtxt(str("./Data/"+date+".dat"), unpack = True)
+		Zd, Ax, Bx, Cx, Ay, By, Cy = loadtxt(str("./Data/0203171921.dat"), unpack = True)
 		Bx=Bx
 		By=By
 		
@@ -298,7 +299,7 @@ class WidgetControl(QtGui.QDialog):
 		# PARA X
 		fig = figure(figsize=(12,10))
 		ax2 = fig.gca()
-		result = gmod.fit(Bx, x=Zd, Af=0.5, Bf=30 , Cf=350)
+		result = gmod.fit(Bx, x=Zd, Af=1, Bf=100 , Cf=5000)
 		Zresult = result.best_values
 		lam=WaveL
 		print result.fit_report()
@@ -323,10 +324,10 @@ class WidgetControl(QtGui.QDialog):
 		errDiv=float("{0:.5f}".format(errDiv))
 		par=result.params["Af"]
 		plt.xlabel(r"$Z (mm)$", fontsize = 27, color = (0,0,0))
-		plt.ylabel(r"$W_x (\mm)$", fontsize = 27, color = (0,0,0))
+		plt.ylabel(r"$W_x (mm)$", fontsize = 27, color = (0,0,0))
 		Eqx=str(Af)+"\sqrt${1+\frac{(x-"+str(Bf)+")^2}{"+str(Cf)+"}}"
 		#plt.text(x = 1, y = 0.0, s = r''+Eqx+'' , fontsize = 24)
-		plt.text(250, -0.08, r"$W_x$: "+str(Wo)+" $\pm$ "+str(errWo)+" $\mm$\n$Z_r$: "+str(Zr)+" $\pm$ "+str(errZr)+" $mm$ \n$\Theta$: "+str(Div)+" $\pm$ "+str(errDiv)+" $rad$", style='italic', fontsize = 24,
+		plt.text(250, -0.08, r"$W_x$: "+str(Wo)+" $\pm$ "+str(errWo)+" $mm$\n$Z_r$: "+str(Zr)+" $\pm$ "+str(errZr)+" $mm$ \n$\Theta$: "+str(Div)+" $\pm$ "+str(errDiv)+" $rad$", style='italic', fontsize = 24,
 			bbox={'facecolor':'white', 'alpha':0.5, 'pad':10})
 		plt.grid()
 		X = np.linspace(-800, 800, 1000, endpoint=True)
@@ -342,9 +343,9 @@ class WidgetControl(QtGui.QDialog):
 		self.waistx.show()
 		
 		
-		(Af, Bf, Cf), _ = curve_fit(fitw, Zd, By)
+		#(Af, Bf, Cf)= curve_fit(fitw, Zd, By)
 		fig2 = figure(figsize=(12,10))
-		result = gmod.fit(By, x=Zd, Af=0.5, Bf=30 , Cf=350)
+		result = gmod.fit(By, x=Zd, Af=1, Bf=100 , Cf=5000)
 		Zresult = result.best_values
 		lam=WaveL
 		Af=Zresult.get("Af")
@@ -369,10 +370,10 @@ class WidgetControl(QtGui.QDialog):
 		errDiv=float("{0:.5f}".format(errDiv))
 		par=result.params["Af"]
 		plt.xlabel(r"$Z (mm)$", fontsize = 27, color = (0,0,0))
-		plt.ylabel(r"$W_y (\mm)$", fontsize = 27, color = (0,0,0))
+		plt.ylabel(r"$W_y (mm)$", fontsize = 27, color = (0,0,0))
 		Eqx=str(Af)+"\sqrt${1+\frac{(y-"+str(Bf)+")^2}{"+str(Cf)+"}}"
 		#plt.text(x = 1, y = 0.0, s = r''+Eqx+'' , fontsize = 24)
-		plt.text(350, -0.08, r"$W_y$: "+str(Wo)+" $\pm$ "+str(errWo)+" $\mm$\n$Z_r$: "+str(Zr)+" $\pm$ "+str(errZr)+" $mm$ \n$\Theta$: "+str(Div)+" $\pm$ "+str(errDiv)+" $rad$", style='italic', fontsize = 24,
+		plt.text(250, -0.08, r"$W_y$: "+str(Wo)+" $\pm$ "+str(errWo)+" $mm$\n$Z_r$: "+str(Zr)+" $\pm$ "+str(errZr)+" $mm$ \n$\Theta$: "+str(Div)+" $\pm$ "+str(errDiv)+" $rad$", style='italic', fontsize = 24,
 			bbox={'facecolor':'white', 'alpha':0.5, 'pad':10})
 		plt.grid()
 		plt.title(r'$Ancho\, vertical\, del\, haz\, en\, funci\acute{o}n\, de\, la\, posici\acute{o}n.$', fontsize = 45)
